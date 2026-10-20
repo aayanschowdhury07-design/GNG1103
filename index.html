@@ -34,10 +34,10 @@
             <button class="tile" style="border:0;text-align:left" onclick="pgo('find')"><span class="eyebrow">Nearby</span><b>3 clinics</b><span class="small">accepting patients today</span></button>
           </div>
           <div class="card">
-            <div class="row between"><h3 style="font-size:15px">To do before your visit</h3><span class="pill warn">1 left</span></div>
+            <div class="row between"><h3 style="font-size:15px">To do before your visit</h3><span class="pill warn" id="p-todo-count">1 left</span></div>
             <div class="list">
               <div class="item"><span class="pill good">Done</span><div class="grow"><div class="t">Contact and consent</div><div class="s">Signed Sep 22</div></div></div>
-              <div class="item"><span class="pill warn">Open</span><div class="grow"><div class="t">Reason for visit</div><div class="s">2 min · needed by Tue 8:30 am</div></div><button class="btn sm" onclick="pgo('intake')">Fill</button></div>
+              <div class="item" id="p-reason-todo"><span class="pill warn">Open</span><div class="grow"><div class="t">Reason for visit</div><div class="s">2 min · needed by Tue 8:30 am</div></div><button class="btn sm" onclick="pgo('intake')">Fill</button></div>
             </div>
           </div>
           <div class="card">
@@ -61,6 +61,8 @@
         <div class="screen" data-s="book">
           <div class="screen-title"><button class="back" onclick="pgo('home')" aria-label="Back">‹</button><h2>Book a visit</h2></div>
           <div class="steps"><span class="on"></span><span></span><span></span><span></span></div>
+          <p class="eyebrow">Who is this visit for?</p>
+          <div class="seg" id="p-who"></div>
           <p class="eyebrow">1 of 4 · Service</p>
           <div class="stack" id="p-services"></div>
           <button class="btn primary block" onclick="pgo('book2')">Continue</button>
@@ -109,6 +111,7 @@
             <div class="item"><span class="pill mute">Mon</span><div class="grow"><div class="t">Reminder, one tap to confirm</div><div class="s">24 h before</div></div></div>
             <div class="item"><span class="pill mute">Tue</span><div class="grow"><div class="t">Check in from your phone</div><div class="s">Opens 1 h before, within 200 m</div></div></div>
           </div></div>
+          <button class="btn block" onclick="toast('p','Added to your calendar. Changes and cancellations update it automatically.')">Add to my calendar</button>
           <button class="btn block" onclick="pgo('home')">Done</button>
         </div>
 
@@ -156,6 +159,27 @@
           <button class="btn primary block" onclick="submitIntake()">Submit</button>
         </div>
 
+        <div class="screen" data-s="family">
+          <div class="screen-title"><button class="back" onclick="pgo(state.famFrom||'profile')" aria-label="Back">‹</button><h2>Family members</h2></div>
+          <p class="small muted" style="margin:0">Book and manage visits for people you care for. Reminders and waitlist offers for their visits come to your phone.</p>
+          <div class="card list" style="padding:0 14px" id="p-family"></div>
+          <div class="card stack">
+            <p class="eyebrow">Add someone</p>
+            <div class="field"><label for="p-fam-name">Full name</label><input id="p-fam-name" placeholder="e.g. Leela Raman"></div>
+            <div class="field"><label for="p-fam-rel">Relationship</label><select id="p-fam-rel"><option>Child</option><option>Parent</option><option>Partner</option><option>Other</option></select></div>
+            <div class="field"><label for="p-fam-dob">Date of birth</label><input id="p-fam-dob" type="date"></div>
+            <div class="chk"><input type="checkbox" id="p-fam-ok"><label for="p-fam-ok" class="small">I'm their parent or guardian, or I have their permission to book for them.</label></div>
+            <button class="btn primary block" onclick="addFamily()">Add family member</button>
+          </div>
+        </div>
+
+        <div class="screen" data-s="history">
+          <div class="screen-title"><button class="back" onclick="pgo('profile')" aria-label="Back">‹</button><h2>Visit history</h2></div>
+          <div class="card" id="p-balance"></div>
+          <div class="card list" style="padding:0 14px" id="p-history"></div>
+          <p class="small muted" style="margin:0">Receipts show the clinician's registration number so you can claim them with your insurer.</p>
+        </div>
+
         <div class="screen" data-s="checkin">
           <div class="screen-title"><button class="back" onclick="pgo('home')" aria-label="Back">‹</button><h2>Check in</h2></div>
           <div id="p-checkin"></div>
@@ -174,8 +198,8 @@
             <div class="item"><div class="grow"><div class="t">Text reminders</div><div class="s">Consented Sep 22, 2026</div></div><span class="pill good">On</span></div>
             <div class="item"><div class="grow"><div class="t">Push notifications</div><div class="s">Reminders, waitlist offers, notices</div></div><span class="pill good">On</span></div>
             <div class="item"><div class="grow"><div class="t">Large text</div><div class="s">Accessibility</div></div><span class="pill mute">Off</span></div>
-            <div class="item"><div class="grow"><div class="t">Family members</div><div class="s">Book for someone you care for</div></div><span class="muted">›</span></div>
-            <div class="item"><div class="grow"><div class="t">Visit history</div><div class="s">4 past visits at 2 clinics</div></div><span class="muted">›</span></div>
+            <button class="item" onclick="state.famFrom='profile';pgo('family')"><div class="grow"><div class="t">Family members</div><div class="s">Book for someone you care for</div></div><span class="muted">›</span></button>
+            <button class="item" onclick="pgo('history')"><div class="grow"><div class="t">Visit history &amp; receipts</div><div class="s">4 past visits at 2 clinics · pay a balance</div></div><span class="muted">›</span></button>
             <div class="item"><div class="grow"><div class="t">Download my data / delete account</div><div class="s">PIPEDA request</div></div><span class="muted">›</span></div>
           </div>
         </div>
@@ -256,6 +280,7 @@
           <button aria-selected="false" onclick="wgo('cal',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><span>Calendar</span></button>
           <button aria-selected="false" onclick="wgo('queue',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="3"/><path d="M2 20a7 7 0 0 1 14 0M17 4a3 3 0 0 1 0 6M22 20a7 7 0 0 0-5-6.7"/></svg><span>Live queue</span></button>
           <button aria-selected="false" onclick="wgo('wait',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h6M18 15l2 2 4-4"/></svg><span>Waitlist &amp; recovery</span></button>
+          <button aria-selected="false" onclick="wgo('missed',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M9.5 13.5l5 5M14.5 13.5l-5 5"/></svg><span>Missed visits</span></button>
           <p class="sec eyebrow">Clinic</p>
           <button aria-selected="false" onclick="wgo('services',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg><span>Services &amp; clinicians</span></button>
           <button aria-selected="false" onclick="wgo('notif',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/></svg><span>Notifications</span></button>
@@ -297,7 +322,7 @@
           </div>
 
           <div class="page" data-p="cal">
-            <div class="page-h"><div><p class="eyebrow">Tuesday, Sep 29</p><h2>Calendar</h2></div><div class="row"><div class="seg" style="width:180px"><button aria-pressed="false">Day</button><button aria-pressed="true">Week</button><button aria-pressed="false">Month</button></div><button class="btn sm primary" onclick="toast('w','Manual booking: slot is locked while you type')">+ Book</button></div></div>
+            <div class="page-h"><div><p class="eyebrow" id="w-cal-date">Tuesday, Sep 29</p><h2>Calendar</h2></div><div class="row"><button class="btn sm" onclick="calShift(-1)" aria-label="Previous day">‹</button><button class="btn sm" onclick="calShift(0)">Today</button><button class="btn sm" onclick="calShift(1)" aria-label="Next day">›</button><div class="seg" style="width:180px"><button aria-pressed="false">Day</button><button aria-pressed="true">Week</button><button aria-pressed="false">Month</button></div><button class="btn sm primary" onclick="toast('w','Manual booking: slot is locked while you type')">+ Book</button></div></div>
             <div class="row" style="gap:14px;flex-wrap:wrap"><span class="pill acc">Booked</span><span class="pill good">Freed slot</span><span class="pill warn">Unconfirmed</span><span class="pill crit">Late / no-show</span><span class="pill mute">Time off</span></div>
             <div class="tablewrap"><div class="cal" style="min-width:640px">
               <div class="h"></div><div class="h">Dr. Osei<small>Physio · 30 min</small></div><div class="h">M. Lam<small>Physio · 45 min</small></div><div class="h">Chiro (visiting)<small>Thu only</small></div><div class="h">Walk-in room<small>15 min</small></div>
@@ -308,6 +333,7 @@
               <div class="time">11:00</div><div class="cell"><div class="appt">J. Tremblay</div></div><div class="cell"><div class="appt off">Break</div></div><div class="cell"><div class="appt off">Not in</div></div><div class="cell"></div>
               <div class="time">11:30</div><div class="cell"><div class="appt">D. Okafor</div></div><div class="cell"><div class="appt">T. Brown<br>Follow-up</div></div><div class="cell"><div class="appt off">Not in</div></div><div class="cell"><div class="appt">Walk-in #14</div></div>
             </div></div>
+            <p class="small muted" style="margin:0" id="w-cal-note" hidden>Sample appointments are only set up for Tue Sep 29; other days repeat them.</p>
             <p class="small muted" style="margin:0">Double-booking guard: a slot is locked for 90 seconds when any user opens it; two confirmations for the same slot cannot both succeed.</p>
           </div>
 
@@ -350,6 +376,13 @@
             </div>
           </div>
 
+          <div class="page" data-p="missed">
+            <div class="page-h"><div><p class="eyebrow">Last 30 days</p><h2>Missed visits</h2></div><div class="row"><div class="seg" style="width:240px" id="w-missed-filter"><button aria-pressed="true" onclick="state.missedFilter='open';renderWeb()">Needs follow-up</button><button aria-pressed="false" onclick="state.missedFilter='all';renderWeb()">All</button></div><button class="btn sm" onclick="toast('w','Missed visits exported to CSV')">Export CSV</button></div></div>
+            <div class="kpis" id="w-missed-kpis"></div>
+            <div class="card"><div class="tablewrap"><table id="w-missed"></table></div></div>
+            <p class="small muted" style="margin:0">No-shows marked in the staff app land here right away. "Excused" keeps them out of the no-show rate, for example when a patient was in hospital.</p>
+          </div>
+
           <div class="page" data-p="services">
             <div class="page-h"><div><h2>Services &amp; clinicians</h2></div><div class="row"><button class="btn sm">+ Service</button><button class="btn sm primary">+ Clinician</button></div></div>
             <div class="cols">
@@ -368,6 +401,10 @@
                 </div>
               </div>
             </div>
+            <div class="card"><div class="row between" style="margin-bottom:8px"><h3 style="font-size:15px">Unavailable time types</h3><span class="small muted">Shown as hatched blocks on the calendar. Never bookable online.</span></div>
+              <div class="tablewrap"><table id="w-blocks"></table></div>
+              <div class="row" style="margin-top:10px;flex-wrap:wrap"><input class="btn sm" style="font-weight:400;width:200px" id="w-block-name" placeholder="e.g. Team meeting"><select class="btn sm" style="font-weight:400" id="w-block-who"><option>Each clinician</option><option>Whole clinic</option></select><button class="btn sm primary" onclick="addBlockType()">Add type</button></div>
+            </div>
           </div>
 
           <div class="page" data-p="notif">
@@ -381,12 +418,16 @@
                 <tr><td>Intake form nudge</td><td>24 h before if incomplete</td><td>Push → SMS</td><td><span class="pill warn">FR missing</span></td></tr>
                 <tr><td>Waitlist offer</td><td>On freed slot</td><td>Push + SMS</td><td><span class="pill good">EN · FR</span></td></tr>
                 <tr><td>Clinic announcement</td><td>Manual</td><td>Push → Email</td><td><span class="pill warn">FR missing</span></td></tr>
+                <tr><td>Cancellation, patient cancelled</td><td>Immediately</td><td>Push → SMS</td><td><span class="pill good">EN · FR</span></td></tr>
+                <tr><td>Cancellation, clinic cancelled</td><td>Manual, staff picks a reason</td><td>SMS + Email</td><td><span class="pill warn">FR missing</span></td></tr>
+                <tr><td>Missed visit follow-up</td><td>Manual, from Missed visits</td><td>SMS → Email</td><td><span class="pill good">EN · FR</span></td></tr>
                 <tr><td>Staff: cancellation / arrival</td><td>Immediately</td><td>Staff app push</td><td><span class="pill good">EN · FR</span></td></tr>
               </table></div></div>
-              <div class="card stack"><h3 style="font-size:15px">Template · 24 h reminder (EN)</h3>
-                <div class="tpl">Hi {first_name}, reminder: {service} with {clinician} tomorrow at {time}, Maple Grove Clinic. Tap to confirm: {link}. Need to change it? Same link. Reply STOP to opt out.</div>
-                <p class="small muted" style="margin:0">142 characters · fits one SMS segment. Delivery log records channel, time and outcome for every message.</p>
-                <button class="btn sm">Send test to my phone</button>
+              <div class="card stack">
+                <div class="field"><label for="w-tpl-pick">Template (EN)</label><select id="w-tpl-pick" onchange="state.tplPick=this.value;renderWeb()"></select></div>
+                <div class="field"><label for="w-tpl-text">Message</label><textarea id="w-tpl-text" rows="5" oninput="saveTpl()"></textarea></div>
+                <p class="small muted" style="margin:0" id="w-tpl-count"></p>
+                <button class="btn sm" onclick="toast('w','Test sent to your phone')">Send test to my phone</button>
               </div>
             </div>
           </div>

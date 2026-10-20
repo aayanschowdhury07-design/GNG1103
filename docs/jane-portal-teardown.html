@@ -1,0 +1,350 @@
+<title>Jane Patient Portal Teardown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,650&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column with a sticky section index on wide screens; reference tables scroll inside their own frames. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #18212f;
+  --muted: #5a6475;
+  --line: #dde2ea;
+  --accent: #9a5b13;
+  --accent-soft: #f5ead9;
+  --obs: #1f6f4a;
+  --obs-soft: #e2f1e8;
+  --inf: #345c9c;
+  --inf-soft: #e3ebf7;
+  --unk: #8a3a3a;
+  --unk-soft: #f6e4e4;
+  --code-bg: #eef1f5;
+  --display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161e; --surface: #171e28; --ink: #e6eaf0; --muted: #9aa5b5; --line: #2a3442;
+    --accent: #e0a25a; --accent-soft: #33281a;
+    --obs: #6fcf9c; --obs-soft: #183026; --inf: #8fb2ea; --inf-soft: #1b2638; --unk: #e79a9a; --unk-soft: #3a2020;
+    --code-bg: #1f2833; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161e; --surface: #171e28; --ink: #e6eaf0; --muted: #9aa5b5; --line: #2a3442;
+  --accent: #e0a25a; --accent-soft: #33281a;
+  --obs: #6fcf9c; --obs-soft: #183026; --inf: #8fb2ea; --inf-soft: #1b2638; --unk: #e79a9a; --unk-soft: #3a2020;
+  --code-bg: #1f2833; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15.5px; line-height: 1.6; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 72px; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 48px; }
+@media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-inline: 16px; } nav.toc { display: none; } }
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; font-size: 13.5px; }
+nav.toc p { font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+nav.toc a { color: var(--muted); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); }
+main { min-width: 0; display: grid; gap: 52px; }
+header .eyebrow { font-family: var(--mono); font-size: 12.5px; color: var(--accent); letter-spacing: .02em; }
+h1 { font-family: var(--display); font-weight: 650; font-size: clamp(30px, 4.4vw, 42px); line-height: 1.12; margin: 8px 0 14px; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 650; font-size: 25px; line-height: 1.2; margin: 0 0 6px; text-wrap: balance; }
+h3 { font-size: 15.5px; font-weight: 600; margin: 22px 0 6px; }
+p { margin: 0 0 12px; max-width: 68ch; }
+.lede { font-size: 17px; color: var(--muted); max-width: 64ch; }
+section > .sub { color: var(--muted); margin-bottom: 18px; }
+code, .mono { font-family: var(--mono); font-size: .86em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.meta { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13px; color: var(--muted); margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.meta b { color: var(--ink); font-weight: 600; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 0; }
+.tag { display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.tag.obs { background: var(--obs-soft); color: var(--obs); }
+.tag.inf { background: var(--inf-soft); color: var(--inf); }
+.tag.unk { background: var(--unk-soft); color: var(--unk); }
+
+.table-frame { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td code { white-space: nowrap; }
+
+.flow { list-style: none; counter-reset: step; margin: 0; padding: 0; display: grid; gap: 0; }
+.flow li { counter-increment: step; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; padding-block: 12px; border-bottom: 1px dashed var(--line); }
+.flow li:last-child { border-bottom: 0; }
+.flow li::before { content: counter(step); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-family: var(--mono); font-size: 13px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+.flow li.hot::before { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.flow .route { font-family: var(--mono); font-size: 13px; color: var(--accent); overflow-wrap: anywhere; }
+.flow p { margin: 2px 0 0; }
+
+.callout { background: var(--accent-soft); border-radius: 8px; padding: 14px 18px; }
+.callout p:last-child { margin-bottom: 0; }
+
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; min-width: 0; }
+.panel h3 { margin-top: 0; }
+.panel ul { margin: 0; padding-left: 18px; }
+.panel li { margin-bottom: 6px; }
+
+pre.code { background: var(--code-bg); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.55; margin: 8px 0 0; }
+
+.ev { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+  <nav class="toc" aria-label="Sections">
+    <p>On this page</p>
+    <ol>
+      <li><a href="#summary">Summary</a></li>
+      <li><a href="#routes">Route map</a></li>
+      <li><a href="#account">Account tabs</a></li>
+      <li><a href="#tabs">How tabs work</a></li>
+      <li><a href="#booking">Booking flow</a></li>
+      <li><a href="#confirmation">Confirmation page</a></li>
+      <li><a href="#plumbing">Tracking &amp; storage</a></li>
+      <li><a href="#clinicflow">Notes for ClinicFlow</a></li>
+      <li><a href="#unknowns">Open questions</a></li>
+      <li><a href="#evidence">Evidence</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header>
+      <div class="eyebrow">ottawatreatmentcentre.janeapp.com/account</div>
+      <h1>Jane patient portal: how the account page and booking flow are built</h1>
+      <p class="lede">A passive teardown of a live, signed-in Jane App patient portal, captured with REA over Chrome DevTools in Microsoft Edge 155. It is a reference for designing the ClinicFlow patient experience.</p>
+      <div class="legend" aria-label="Confidence legend">
+        <span class="tag obs">Observed</span>
+        <span class="tag inf">Inferred</span>
+        <span class="tag unk">Unknown</span>
+      </div>
+      <div class="meta">
+        <span><b>Captured</b> 13 Oct 2026</span>
+        <span><b>Method</b> passive CDP observation (no scripted clicks)</span>
+        <span><b>Scope</b> clinic origin only</span>
+      </div>
+    </header>
+
+    <section id="summary">
+      <h2>Summary</h2>
+      <p class="sub">What the portal is, in five lines.</p>
+      <div class="table-frame">
+        <table>
+          <thead><tr><th>Finding</th><th>Confidence</th></tr></thead>
+          <tbody>
+            <tr><td>The account page is one server-rendered HTML document. All 13 sections ship in it, and jQuery shows and hides them.</td><td><span class="tag obs">Observed</span></td></tr>
+            <tr><td>Newer features (patient messaging, Add Family form) are React widgets mounted into placeholder divs on that page.</td><td><span class="tag obs">Observed</span></td></tr>
+            <tr><td>Booking is a separate single-page app at <code>/</code> with hash routes: category → practitioner → treatment and time.</td><td><span class="tag obs">Observed</span></td></tr>
+            <tr><td>Choosing a time books immediately through <code>/appointments/confirm</code> → <code>/finalize</code> → <code>/appointments/&lt;id&gt;</code>. There is no separate review screen.</td><td><span class="tag obs">Observed</span></td></tr>
+            <tr><td>The back end is Ruby on Rails, based on the rails-ujs attributes in the markup.</td><td><span class="tag inf">Inferred</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="routes">
+      <h2>Route map</h2>
+      <p class="sub">Every page-level URL seen during the recorded session. "Full load" means the browser fetched a new document.</p>
+      <div class="table-frame">
+        <table>
+          <thead><tr><th>URL</th><th>Kind</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>/account</code></td><td>Full load</td><td>Patient dashboard with all account sections</td></tr>
+            <tr><td><code>/account#&lt;section&gt;</code></td><td>Same page</td><td>Switches the visible section (see next table)</td></tr>
+            <tr><td><code>/pay</code></td><td>Full load</td><td>Pay outstanding balance. Separate server page, not a tab</td></tr>
+            <tr><td><code>/</code></td><td>Full load</td><td>Booking app shell</td></tr>
+            <tr><td><code>/#/&lt;discipline-slug&gt;</code></td><td>Same page</td><td>Practitioners in a discipline, e.g. <code>#/registered-psychotherapist</code></td></tr>
+            <tr><td><code>/#/staff_member/:id</code></td><td>Same page</td><td>One practitioner's profile and treatments</td></tr>
+            <tr><td><code>/#/staff_member/:id/treatment/:id</code></td><td>Same page</td><td>Availability for one treatment; picking a slot books it</td></tr>
+            <tr><td><code>/appointments/confirm</code></td><td>Script-initiated</td><td>Creates the booking server-side</td></tr>
+            <tr><td><code>/appointments/finalize</code></td><td>Redirect</td><td>Intermediate step, redirects immediately</td></tr>
+            <tr><td><code>/appointments/:hex_id</code></td><td>Full load</td><td>"You have just booked" confirmation page</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="account">
+      <h2>Account tabs</h2>
+      <p class="sub">Sidebar label, the section's anchor id (taken from the recorded URL changes), and what lives there.</p>
+      <div class="table-frame">
+        <table>
+          <thead><tr><th>Sidebar label</th><th>Anchor</th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td>Upcoming Appointments</td><td><code>#upcoming</code></td><td>Upcoming visits table, Subscribe to your calendar, and the Wait List Requests table (Session, Client, Availability) with Add a Wait List Request. This is the default tab</td></tr>
+            <tr><td>Appointment History</td><td><code>#history</code></td><td>Past visits</td></tr>
+            <tr><td>Intake Forms</td><td><code>#intake_forms</code></td><td>Clinic forms to complete</td></tr>
+            <tr><td>Documents</td><td><code>#documents</code></td><td>Files shared by the clinic</td></tr>
+            <tr><td>Contact Info</td><td><code>#user_info</code></td><td>Profile form with Google Places address autocomplete and phone-number checks for mobile and home</td></tr>
+            <tr><td>Credit Cards on File</td><td><code>#credit_cards</code></td><td>Saved cards. Adding one is blocked with a tooltip on test-client accounts</td></tr>
+            <tr><td>Pay Balance</td><td><code>/pay</code></td><td>Links out to a separate page</td></tr>
+            <tr><td>Receipts</td><td><span class="tag unk">Not opened</span></td><td>Payment receipts</td></tr>
+            <tr><td>Notifications &amp; Reminders</td><td><code>#reminder_prefs</code></td><td>Email and SMS opt-ins. Unticking one opens a permissions explainer modal</td></tr>
+            <tr><td>Sign-in Settings</td><td><code>#identity_login</code></td><td>Password with Show/Hide toggle, Google sign-in. Facebook sign-in is disabled with a tooltip</td></tr>
+            <tr><td>Family Members</td><td><code>#family_profiles</code></td><td>Linked dependants and a React "Add family" form</td></tr>
+            <tr><td>Time Zone</td><td><code>#time_zone</code></td><td>Display time zone. The booking calendar deep-links here</td></tr>
+            <tr><td>Messages</td><td><span class="mono">MESSAGES_HASH</span></td><td>Patient–practitioner messaging, a React mount (<code>#messages-patient-mount</code>). Enabled for this clinic</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tabs">
+      <h2>How tab switching works</h2>
+      <p class="sub">Read from the page's inline account script. This is observed source code, not a guess.</p>
+      <div class="cols">
+        <div class="panel">
+          <h3>State in three places</h3>
+          <ul>
+            <li>The URL hash, e.g. <code>#history</code>, is the main source.</li>
+            <li>An <code>account_tab</code> cookie that lasts <b>10 minutes</b> restores the last tab after a reload.</li>
+            <li><code>?active_tab=</code> is turned into a hash so deep links survive the sign-in redirect.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Edge cases handled</h3>
+          <ul>
+            <li><code>#wait_list</code> is never restored. The page falls back to Upcoming.</li>
+            <li>At 480px wide or less, the remembered tab is not restored.</li>
+            <li>At 768px wide or less, opening Messages auto-scrolls to it.</li>
+            <li>Edit-relationship and edit-user hashes are mapped back to a valid tab.</li>
+          </ul>
+        </div>
+      </div>
+      <pre class="code" aria-label="Core of the tab handler, condensed">// condensed from the page's inline script
+$('#account-nav').on('click', 'a[data-toggle="tab"]', e =&gt; {
+  e.preventDefault();
+  $('.account-container').fadeOut(400);
+  $(tab).delay(401).fadeIn(400);
+  Cookies.set('account_tab', tab, { expires: in10Minutes });
+  window.location.hash = tab;
+});</pre>
+    </section>
+
+    <section id="booking">
+      <h2>Booking flow</h2>
+      <p class="sub">The sequence recorded in the browser. Steps 1–3 happen inside the booking app without page loads.</p>
+      <ol class="flow">
+        <li><div><div class="route">/#/registered-psychotherapist</div><p>Choose a discipline and see its practitioners.</p></div></li>
+        <li><div><div class="route">/#/staff_member/:id</div><p>Open one practitioner's page.</p></div></li>
+        <li><div><div class="route">/#/staff_member/:id/treatment/:id</div><p>Choose a treatment and see open time slots.</p></div></li>
+        <li class="hot"><div><div class="route">/appointments/confirm → /appointments/finalize</div><p>Picking a slot sends the browser here, and the server creates the booking. This is the commit point.</p></div></li>
+        <li><div><div class="route">/appointments/:hex_id</div><p>Confirmation page. The header changes to "You have 1 upcoming appointment."</p></div></li>
+      </ol>
+      <div class="callout" style="margin-top:16px">
+        <p><b>Design consequence.</b> Jane puts the commit before the "reason for visit" and reminder questions. A patient who is just exploring can book by accident. That happened during this capture, and the appointment was then cancelled. Jane's 48-hour cancellation-fee policy makes this costly.</p>
+      </div>
+    </section>
+
+    <section id="confirmation">
+      <h2>Confirmation page</h2>
+      <p class="sub">What a patient sees right after booking.</p>
+      <div class="table-frame">
+        <table>
+          <thead><tr><th>Block</th><th>Behaviour</th></tr></thead>
+          <tbody>
+            <tr><td>Booked appointments table</td><td>Date, Session, Client. Says a confirmation email follows</td></tr>
+            <tr><td>What is the reason for your visit?</td><td>Free-text box with a Save Reason button. Optional, collected after booking</td></tr>
+            <tr><td>How would you like to be reminded?</td><td>Email 2 days before (ticked by default), Text message 2 hours before (unticked)</td></tr>
+            <tr><td>Subscribe to your calendar</td><td>A calendar feed that updates as bookings change</td></tr>
+            <tr><td>Cancellation policy</td><td>48 hours' notice, or a fee is charged to the card on file</td></tr>
+            <tr><td>Next steps</td><td>View My Account, Book Additional Appointments</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="plumbing">
+      <h2>Tracking and storage</h2>
+      <p class="sub">Storage key names only; REA never reads the stored values.</p>
+      <div class="cols">
+        <div class="panel">
+          <h3>Analytics hooks</h3>
+          <ul>
+            <li><code>mountMyAccountPageViewedTracking</code></li>
+            <li><code>mountAccountTabTracking</code></li>
+            <li><code>mountIntakeFormTracking('my_account')</code></li>
+            <li><code>mountSubscribeToCalendarTracking</code></li>
+            <li><code>mountAddWaitlistRequestTracking</code></li>
+            <li>Book buttons carry <code>data-track-book-appointment</code> and <code>data-cta-location</code></li>
+          </ul>
+          <p style="margin-top:10px">Events go to RudderStack on a Jane-run data plane in a Canadian region, alongside Google tag.</p>
+        </div>
+        <div class="panel">
+          <h3>Consent and storage</h3>
+          <ul>
+            <li>Google Consent Mode starts with analytics and ad storage <b>denied</b>.</li>
+            <li>Enzuzo handles the cookie banner and preferences.</li>
+            <li>localStorage: <code>cookie_consent</code>, <code>csrf-token</code>, <code>_gcl_ls</code>, RudderStack queue keys.</li>
+            <li>sessionStorage: <code>browser_tab_id</code>, which tells separate tabs apart.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="clinicflow">
+      <h2>Notes for ClinicFlow</h2>
+      <p class="sub">Comparisons with the screens already in the ClinicFlow prototype. These are design choices, not findings.</p>
+      <div class="table-frame">
+        <table>
+          <thead><tr><th>Topic</th><th>Jane</th><th>ClinicFlow opportunity</th></tr></thead>
+          <tbody>
+            <tr><td>Commit point</td><td>Picking a slot books at once</td><td>Keep the "Your details" and "Verify your phone" steps before "You're booked", so there is a deliberate confirm</td></tr>
+            <tr><td>Reason for visit</td><td>Asked after booking, optional</td><td>ClinicFlow's dedicated Reason for visit screen can feed triage before the slot is held</td></tr>
+            <tr><td>Waitlist</td><td>Hidden under Upcoming. Never restored on reload</td><td>ClinicFlow's Waitlist and "Earlier slot open" screens make it a first-class flow</td></tr>
+            <tr><td>Reminders</td><td>Chosen on the confirmation page and in settings</td><td>Ask once in Notifications and show a summary on the booking card</td></tr>
+            <tr><td>Navigation</td><td>13-item sidebar; Pay Balance quietly leaves the page</td><td>Group into Visits, Forms, Billing and Profile, and keep every item in one shell</td></tr>
+            <tr><td>Before the visit</td><td>Intake forms sit in their own tab</td><td>ClinicFlow's "To do before your visit" list surfaces forms on the home screen</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="unknowns">
+      <h2>Open questions</h2>
+      <p class="sub">What this capture could not answer, and how to close each gap.</p>
+      <div class="table-frame">
+        <table>
+          <thead><tr><th>Question</th><th>Why unknown</th><th>Next step</th></tr></thead>
+          <tbody>
+            <tr><td>Which API calls load slots and practitioners?</td><td>The session recorder keeps navigation only, not XHR or fetch requests</td><td>Run <code>capture_browser_scenario</code> with network capture while browsing (stop before a slot)</td></tr>
+            <tr><td>How do the React widgets (messaging, Add Family, booking app) work inside?</td><td>18 scripts from other origins were filtered out of scope</td><td>Re-run <code>analyze_web_bundle</code> with Jane's asset CDN in <code>allowed_origins</code></td></tr>
+            <tr><td>What do Receipts and the Wait List form look like?</td><td>Not opened during the recording</td><td>Short second recording</td></tr>
+            <tr><td>What were the cross-site loads blocked with <code>ERR_BLOCKED_BY_ORB</code>?</td><td>Their URLs were outside the scope filter</td><td>Probably a tracking pixel; low priority</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="evidence">
+      <h2>Evidence</h2>
+      <p class="sub">REA evidence records behind this page.</p>
+      <div class="table-frame">
+        <table>
+          <thead><tr><th>Operation</th><th>Evidence ID</th><th>Used for</th></tr></thead>
+          <tbody>
+            <tr><td>list_browser_targets</td><td class="ev">ev_363c071abfdaf5be…</td><td>Target identity</td></tr>
+            <tr><td>capture_web_screenshot</td><td class="ev">ev_a3efd7171807e3df…</td><td>Account page layout</td></tr>
+            <tr><td>inspect_web_page</td><td class="ev">ev_6bfb1827584c3a32…</td><td>Accessibility tree, DOM, storage keys</td></tr>
+            <tr><td>inspect_web_page (with sources)</td><td class="ev">second capture</td><td>Inline tab and tracking scripts</td></tr>
+            <tr><td>analyze_web_bundle</td><td class="ev">ev_4a9389275c26b661…</td><td>14 inline scripts parsed, 0 failures</td></tr>
+            <tr><td>observe_web_session (60 s)</td><td class="ev">ev_89885641e71ad13f…</td><td>Route map and booking sequence</td></tr>
+            <tr><td>capture_web_screenshot</td><td class="ev">ev_8176695cfcf87640…</td><td>Confirmation page</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      Captured passively. REA did not click, navigate, run page scripts or retain cookie, header or body values. Every navigation in the timeline was made by the person at the keyboard. Personal details from the signed-in account are left out of this page.
+    </footer>
+  </main>
+</div>

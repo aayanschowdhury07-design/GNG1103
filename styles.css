@@ -85,6 +85,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .list{display:flex;flex-direction:column}
 .item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
 .item:last-child{border-bottom:0}
+button.item{width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left}
+button.item:last-child{border-bottom:0}
 .item .grow{flex:1;min-width:0}
 .item .t{font-weight:600}
 .item .s{font-size:12.5px;color:var(--muted)}
