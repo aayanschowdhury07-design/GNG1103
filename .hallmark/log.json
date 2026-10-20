@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-10-20",
+    "verb": "redesign",
+    "scope": "app",
+    "genre": "modern-minimal",
+    "macrostructure": "Workbench",
+    "theme": "custom",
+    "theme_axes": "light / high-contrast-serif titles + Inter body / cool (clinical blue, hue 258)",
+    "vibe": "calm clinical, typographic, few containers",
+    "enrichment": "none",
+    "brief": "ClinicFlow prototype · remove boxed cards and pills; patient app, staff app, staff website"
+  }
+]

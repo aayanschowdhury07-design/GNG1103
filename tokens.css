@@ -1,0 +1,60 @@
+/* Hallmark · tokens · ClinicFlow
+ * Paper: warm off-white. Ink: blue-black. One accent: calm clinical blue (hue 258).
+ * Every colour, font, space and easing used in styles.css is named here. Light is the default;
+ * dark applies only when the header toggle sets data-theme="dark".
+ */
+:root{
+  /* colour, light */
+  --bg:oklch(98.5% 0.003 106);          /* paper */
+  --surface:oklch(100% 0 0);            /* raised paper: inputs, frames */
+  --surface-2:oklch(96.6% 0.003 128);   /* quiet fill */
+  --line:oklch(92.3% 0.005 118);        /* hairline rule */
+  --fg:oklch(24.6% 0.015 257);          /* ink */
+  --muted:oklch(50.5% 0.020 259);       /* ink-2 */
+  --accent:oklch(50.3% 0.105 258);
+  --accent-soft:oklch(95.9% 0.011 257);
+  --accent-fg:oklch(100% 0 0);
+  --good:oklch(51.7% 0.105 160);  --good-soft:oklch(95.6% 0.017 163);
+  --warn:oklch(51.9% 0.113 65);   --warn-soft:oklch(96.1% 0.026 82);
+  --crit:oklch(50.1% 0.178 29);   --crit-soft:oklch(95.5% 0.016 22);
+  --info:oklch(50.3% 0.105 258);  --info-soft:oklch(95.9% 0.011 257);
+  --on-solid:oklch(100% 0 0);
+  --hero:oklch(41.6% 0.089 258);  --hero-fg:oklch(100% 0 0);  --hero-wash:oklch(100% 0 0 / .12);
+  --board:oklch(28.4% 0.045 259); --board-fg:oklch(96% 0.009 258);
+  --focus:oklch(50.3% 0.105 258);
+  --shadow:0 1px 2px oklch(24.6% 0.015 257 / .05),0 12px 32px oklch(24.6% 0.015 257 / .07);
+  color-scheme:light;
+
+  /* type */
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --display:"Inter","Segoe UI",system-ui,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+
+  /* type scale, fixed px, ~1.2 ratio (product UI: no fluid type) */
+  --text-xs:12px; --text-sm:13px; --text-base:14px; --text-md:16px;
+  --text-lg:19px; --text-xl:23px; --text-2xl:28px;
+
+  /* space, 4 pt scale */
+  --space-3xs:4px; --space-2xs:8px; --space-xs:12px; --space-sm:16px;
+  --space-md:24px; --space-lg:32px; --space-xl:48px;
+
+  /* shape and motion */
+  --r:12px; --radius-control:8px; --radius-small:6px;
+  --ease-out:cubic-bezier(0.16,1,0.3,1); --dur-short:160ms;
+}
+:root[data-theme="dark"]{
+  --bg:oklch(19% 0.007 258); --surface:oklch(23% 0.011 261); --surface-2:oklch(26.7% 0.013 258); --line:oklch(31.9% 0.014 257);
+  --fg:oklch(93.6% 0.005 258); --muted:oklch(71% 0.018 259);
+  --accent:oklch(75.2% 0.082 259); --accent-soft:oklch(28.7% 0.037 258); --accent-fg:oklch(20.3% 0.025 259);
+  --good:oklch(76.3% 0.105 161);  --good-soft:oklch(28.6% 0.034 177);
+  --warn:oklch(78.7% 0.111 76);   --warn-soft:oklch(28.5% 0.037 79);
+  --crit:oklch(78.2% 0.097 27);   --crit-soft:oklch(27.5% 0.043 25);
+  --info:oklch(75.2% 0.082 259);  --info-soft:oklch(28.7% 0.037 258);
+  --on-solid:oklch(19% 0.007 258);
+  --hero:oklch(34.4% 0.064 259);  --hero-fg:oklch(96% 0.009 258);  --hero-wash:oklch(100% 0 0 / .08);
+  --board:oklch(16.8% 0.012 261); --board-fg:oklch(93.6% 0.005 258);
+  --focus:oklch(75.2% 0.082 259);
+  --shadow:0 1px 2px oklch(0% 0 0 / .3),0 12px 32px oklch(0% 0 0 / .35);
+  color-scheme:dark;
+}
