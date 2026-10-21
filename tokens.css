@@ -8,7 +8,8 @@
   --bg:oklch(98.5% 0.003 106);          /* paper */
   --surface:oklch(100% 0 0);            /* raised paper: inputs, frames */
   --surface-2:oklch(96.6% 0.003 128);   /* quiet fill */
-  --line:oklch(92.3% 0.005 118);        /* hairline rule */
+  --line:oklch(92.3% 0.005 118);        /* hairline rule: separators only */
+  --line-strong:oklch(64% 0.012 258);   /* control boundary: inputs, slots, radios, keys (≥3:1 on paper) */
   --fg:oklch(24.6% 0.015 257);          /* ink */
   --muted:oklch(50.5% 0.020 259);       /* ink-2 */
   --accent:oklch(50.3% 0.105 258);
@@ -23,6 +24,15 @@
   --board:oklch(28.4% 0.045 259); --board-fg:oklch(96% 0.009 258);
   --focus:oklch(50.3% 0.105 258);
   --shadow:0 1px 2px oklch(24.6% 0.015 257 / .05),0 12px 32px oklch(24.6% 0.015 257 / .07);
+  --scrim:oklch(24.6% 0.015 257 / .38);
+  /* patient status: one hue per step of Booked → Confirmed → Checked in → Waiting → In visit → Complete.
+   * Shape carries the rest: an outlined dot means not here yet, a filled dot means arrived. */
+  --st-booked:oklch(50.5% 0.020 259);
+  --st-confirmed:oklch(50.3% 0.105 258);
+  --st-arrived:oklch(48.5% 0.080 200);
+  --st-waiting:oklch(51.9% 0.113 65);
+  --st-invisit:oklch(48.5% 0.130 305);
+  --st-done:oklch(46% 0.012 257);
   color-scheme:light;
 
   /* type */
@@ -44,7 +54,7 @@
   --ease-out:cubic-bezier(0.16,1,0.3,1); --dur-short:160ms;
 }
 :root[data-theme="dark"]{
-  --bg:oklch(19% 0.007 258); --surface:oklch(23% 0.011 261); --surface-2:oklch(26.7% 0.013 258); --line:oklch(31.9% 0.014 257);
+  --bg:oklch(19% 0.007 258); --surface:oklch(23% 0.011 261); --surface-2:oklch(26.7% 0.013 258); --line:oklch(31.9% 0.014 257); --line-strong:oklch(56% 0.014 258);
   --fg:oklch(93.6% 0.005 258); --muted:oklch(71% 0.018 259);
   --accent:oklch(75.2% 0.082 259); --accent-soft:oklch(28.7% 0.037 258); --accent-fg:oklch(20.3% 0.025 259);
   --good:oklch(76.3% 0.105 161);  --good-soft:oklch(28.6% 0.034 177);
@@ -56,5 +66,8 @@
   --board:oklch(16.8% 0.012 261); --board-fg:oklch(93.6% 0.005 258);
   --focus:oklch(75.2% 0.082 259);
   --shadow:0 1px 2px oklch(0% 0 0 / .3),0 12px 32px oklch(0% 0 0 / .35);
+  --scrim:oklch(0% 0 0 / .55);
+  --st-booked:oklch(71% 0.018 259); --st-confirmed:oklch(75.2% 0.082 259); --st-arrived:oklch(76% 0.085 200);
+  --st-waiting:oklch(78.7% 0.111 76); --st-invisit:oklch(76% 0.100 305); --st-done:oklch(66% 0.012 258);
   color-scheme:dark;
 }
