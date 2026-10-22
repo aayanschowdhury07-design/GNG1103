@@ -382,6 +382,34 @@ tr:last-child td{border-bottom:0}
 .vbar.today i{background:var(--accent)}
 .vbar.today{color:var(--fg);font-weight:500}
 
+/* ---------- clinic directory: map, selected-clinic card, list ---------- */
+.map{flex:none;height:220px;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:var(--surface-2);position:relative;z-index:0}
+.phone.large .map{zoom:calc(1 / 1.15)}  /* Leaflet reads pointer positions unzoomed */
+.map-off{display:grid;place-items:center;height:100%;padding:var(--space-sm);text-align:center}
+.leaflet-container{font-family:var(--body);background:var(--surface-2)}
+.map .leaflet-tile-pane{filter:saturate(.3) contrast(.92) brightness(1.04)}
+:root[data-theme="dark"] .map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) saturate(.25) brightness(.85) contrast(.9)}
+.leaflet-container .leaflet-control-attribution{font-size:var(--text-xs);background:color-mix(in oklch,var(--surface) 85%,transparent);color:var(--muted)}
+.leaflet-container .leaflet-control-attribution a{color:inherit}
+.leaflet-bar a,.leaflet-bar a:hover{width:44px;height:44px;line-height:44px;background:var(--surface);color:var(--fg);border-color:var(--line)}
+.leaflet-bar{border:1px solid var(--line-strong)!important;box-shadow:var(--shadow)!important}
+.pin{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--accent-fg);font:600 12px/1 var(--body);border:2px solid var(--surface);box-shadow:0 2px 6px oklch(0% 0 0 / .28);transition:transform var(--dur-short) var(--ease-out)}
+.pin.off{background:var(--surface);color:var(--muted);border-color:var(--line-strong)}
+.pin.sel{transform:scale(1.18);box-shadow:0 0 0 3px var(--fg),0 4px 10px oklch(0% 0 0 / .3)}
+.leaflet-marker-icon:focus-visible{outline:none}
+.leaflet-marker-icon:focus-visible .pin{box-shadow:0 0 0 3px var(--focus)}
+.me-dot{display:block;width:18px;height:18px;border-radius:50%;background:var(--st-arrived);border:3px solid var(--surface);box-shadow:0 0 0 6px color-mix(in oklch,var(--st-arrived) 22%,transparent)}
+.map-card{display:flex;align-items:center;gap:var(--space-xs);min-height:44px;margin-top:calc(-1 * var(--space-2xs))}
+.map-card .t{font-weight:600}
+.map-card .s,.dirsel .s{display:block;font-size:var(--text-sm);color:var(--muted)}
+.s.open{color:var(--good)}
+.dirsel{border:0;background:none;padding:2px 0;text-align:left;min-height:44px;border-radius:var(--radius-small)}
+.dirsel .t{display:block;font-weight:500}
+.dirsel:hover .t{color:var(--accent)}
+.item.sel .dirsel .t{color:var(--accent)}
+.item.sel{box-shadow:inset 0 -2px 0 var(--accent)}
+.dirsel .pill{margin-left:6px}
+
 /* ---------- demo tools: outside the product frames, dashed so it never reads as product UI ---------- */
 .demo{position:fixed;right:16px;bottom:16px;z-index:50;width:min(360px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow-y:auto;background:var(--surface);border:1px dashed var(--line-strong);border-radius:var(--r);box-shadow:var(--shadow);padding:var(--space-sm);display:flex;flex-direction:column;gap:var(--space-xs)}
 .demo h2{font-size:var(--text-md);font-weight:600}

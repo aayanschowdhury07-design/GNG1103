@@ -5,10 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ClinicFlow Prototype</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="styles.css">
 <script>try{if(localStorage.getItem('cf-theme')==='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 <!-- one icon family, referenced with <use> -->
@@ -47,6 +49,7 @@
         <div class="screen active" data-s="home">
           <div class="screen-title"><h2 id="p-greet">Good morning, Priya</h2></div>
           <div class="hero" id="p-hero"></div>
+          <div class="card" id="p-other" hidden></div>
           <div class="grid2">
             <button class="tile" onclick="startBooking()"><b>Book a visit</b><span class="small muted">At Maple Grove. No account needed.</span></button>
             <button class="tile" onclick="pgo('find')"><b>Other clinics</b><span class="small muted" id="p-near-count">Nearby clinics with openings</span></button>
@@ -65,9 +68,11 @@
         </div>
 
         <div class="screen" data-s="find">
-          <div class="screen-title"><button class="back" onclick="pgo('home')" aria-label="Back"><svg class="ic"><use href="#i-left"/></svg></button><h2>Find a clinic</h2></div>
-          <div class="field"><label for="p-find">Service or clinic</label><input id="p-find" placeholder="e.g. physiotherapy" oninput="renderPatient()"></div>
-          <div class="seg" id="p-find-filter"><button aria-pressed="true" onclick="state.findFilter='accepting';renderPatient()">Accepting patients</button><button aria-pressed="false" onclick="state.findFilter='today';renderPatient()">Has openings today</button><button aria-pressed="false" onclick="state.findFilter='all';renderPatient()">All</button></div>
+          <div class="screen-title"><button class="back" onclick="pgo('home')" aria-label="Back"><svg class="ic"><use href="#i-left"/></svg></button><h2>Clinics near you</h2></div>
+          <div class="field"><label for="p-find">Service or clinic</label><input id="p-find" type="search" placeholder="e.g. physiotherapy" oninput="renderPatient()"></div>
+          <div class="seg" id="p-find-filter"><button aria-pressed="true" onclick="state.findFilter='accepting';renderPatient()">Accepting patients</button><button aria-pressed="false" onclick="state.findFilter='today';renderPatient()">Openings today</button><button aria-pressed="false" onclick="state.findFilter='all';renderPatient()">All</button></div>
+          <div class="map" id="p-map" role="region" aria-label="Map of nearby clinics. The same clinics are listed below."></div>
+          <div class="map-card" id="p-map-card" aria-live="polite"></div>
           <div class="list card" id="p-clinics"></div>
           <p class="small muted">Clinics opt in to the directory. Only availability is shared, never the reason for your visit.</p>
         </div>
@@ -75,7 +80,9 @@
         <div class="screen" data-s="book">
           <div class="screen-title"><button class="back" onclick="pgo('home')" aria-label="Back"><svg class="ic"><use href="#i-left"/></svg></button><h2 data-t="bookTitle">Book a visit</h2><div class="seg lang" id="p-lang" role="group" aria-label="Language / Langue"></div></div>
           <div class="steps"><span class="on"></span><span></span><span></span><span></span></div>
-          <p class="small muted" data-t="bookIntro">You opened Maple Grove Clinic's booking link. No account or password needed.</p>
+          <p class="small muted" data-t="bookIntro">Booking at Maple Grove Clinic. No account or password needed.</p>
+          <div class="field"><label for="p-clinic" data-t="clinic">Clinic</label><select id="p-clinic" onchange="pickClinic(this.value)"></select></div>
+          <button class="btn sm" style="align-self:flex-start;margin-top:-8px" onclick="pgo('find')" data-t="seeMap">See clinics on a map</button>
           <p class="eyebrow" data-t="whoFor">Who is this visit for?</p>
           <div class="seg" id="p-who"></div>
           <p class="eyebrow" data-t="step1">Step 1 of 4 · Service</p>
@@ -91,7 +98,7 @@
           <p class="eyebrow" data-t="day">Tuesday, Sep 29</p>
           <div class="slots" id="p-slots"></div>
           <p class="small muted" id="p-slot-note"></p>
-          <button class="btn ghost" onclick="pgo('waitlist')" data-t="joinWl" style="align-self:flex-start">Nothing works? Join the waitlist</button>
+          <button class="btn ghost" onclick="bookWaitlist()" data-t="joinWl" style="align-self:flex-start">Nothing works? Join the waitlist</button>
           <div class="sticky-actions">
             <div class="lockbar p-lockbar" hidden></div>
             <p class="err" id="p-slot-err" hidden role="alert"></p>

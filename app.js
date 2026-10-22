@@ -93,7 +93,7 @@ const state={
   pendingOffer:null,
   recovery:{total:17,refilled:12},
   rules:{cancelWindow:24,order:'First come, first served (staff can pin priority)',hold:15,cutoff:'60 min before slot',remind48:true,remind24:true},
-  booking:{mode:'new',service:'Physiotherapy · follow-up',clin:'osei',time:null,who:'me'},
+  booking:{mode:'new',clinic:'mg',service:'Physiotherapy · follow-up',clin:'osei',time:null,who:'me'},
   otp:{code:null,phone:'',pending:{},target:null},
   consent:{sms:true,at:'Sep 22, 2026'},
   pSigned:true, largeText:false, findFilter:'accepting',
@@ -104,13 +104,30 @@ const state={
     {date:'Aug 20, 2026',svc:'Chiropractic · adjustment',clin:'Dr. Rania Daoud',clinic:'Maple Grove Clinic',fee:70,owing:0,who:'Arjun Raman'},
     {date:'Jun 11, 2026',svc:'Physiotherapy · follow-up',clin:'Sam Whitlock, PT',clinic:'Lakeshore Physio',fee:90,owing:0,who:'Priya Raman'},
   ],
-  directory:[
-    {ini:'MG',name:'Maple Grove Clinic',dist:0.8,services:'Physiotherapy, chiropractic',accepting:true,today:true,next:'next opening today 2:30 pm',self:true},
-    {ini:'DF',name:'Dundas Family Health',dist:1.6,services:'Family practice, walk-in',accepting:true,today:true,next:'next opening today 4:00 pm'},
-    {ini:'LP',name:'Lakeshore Physio',dist:2.1,services:'Physiotherapy',accepting:true,today:false,next:'next opening Wed 9:00 am'},
-    {ini:'QW',name:'Queen West Rehab',dist:3.4,services:'Rehab, massage',accepting:false,today:false,next:'waitlist only'},
-    {ini:'HM',name:'Harbour Mind Wellness',dist:4.2,services:'Mental health, counselling',accepting:true,today:false,next:'next opening Fri 1:00 pm'},
+  // the ClinicFlow clinic directory. Clinics opt in and share availability only, never patient details.
+  // Maple Grove's own services, clinicians and schedule are the ones above; the others carry their own here.
+  // "open" lists today's free times per clinician; every other time is already booked.
+  clinics:[
+    {id:'mg',ini:'MG',name:'Maple Grove Clinic',address:'214 Elm Ave',lat:43.6807,lng:-79.3838,services:'Physiotherapy, chiropractic',accepting:true,home:true},
+    {id:'df',ini:'DF',name:'Dundas Family Health',address:'620 Bay St',lat:43.6600,lng:-79.3870,services:'Family practice, walk-in',accepting:true,
+      clins:[{id:'df-rahman',name:'Dr. Aisha Rahman',short:'Dr. Rahman',role:'Family physician',roleFr:'Médecin de famille'},{id:'df-tran',name:'Dr. Paul Tran',short:'Dr. Tran',role:'Family physician',roleFr:'Médecin de famille'}],
+      svcs:[{name:'Family doctor · regular visit',fr:'Médecin de famille · visite régulière',short:'Family doctor visit',dur:15,online:true,who:'Registered patients and new patients',whoFr:'Patients inscrits et nouveaux patients',clins:['df-rahman','df-tran']},
+            {name:'Prescription renewal',fr:'Renouvellement d’ordonnance',short:'Prescription renewal',dur:15,online:true,who:'Registered patients',whoFr:'Patients inscrits',clins:['df-rahman','df-tran']}],
+      open:{'df-rahman':['4:00'],'df-tran':['4:00','4:30']}},
+    {id:'lp',ini:'LP',name:'Lakeshore Physio',address:'45 St Clair Ave W',lat:43.6878,lng:-79.3985,services:'Physiotherapy',accepting:true,
+      clins:[{id:'lp-whitlock',name:'Sam Whitlock, PT',short:'S. Whitlock',role:'Physiotherapist',roleFr:'Physiothérapeute'},{id:'lp-patel',name:'Nora Patel, PT',short:'N. Patel',role:'Physiotherapist',roleFr:'Physiothérapeute'}],
+      svcs:[{name:'Physiotherapy · assessment',fr:'Physiothérapie · évaluation',short:'Physio assessment',dur:45,online:true,who:'New patients',whoFr:'Nouveaux patients',clins:['lp-whitlock','lp-patel']},
+            {name:'Physiotherapy · treatment',fr:'Physiothérapie · traitement',short:'Physio treatment',dur:30,online:true,who:'Returning patients',whoFr:'Patients déjà suivis',clins:['lp-whitlock','lp-patel']}],
+      open:{'lp-whitlock':['11:30'],'lp-patel':['2:00','2:30','3:30']}},
+    {id:'qw',ini:'QW',name:'Queen West Rehab',address:'215 Queen St W',lat:43.6505,lng:-79.3885,services:'Rehab, massage',accepting:false,
+      clins:[{id:'qw-moreau',name:'Luc Moreau, RMT',short:'L. Moreau',role:'Massage therapist',roleFr:'Massothérapeute'}],
+      svcs:[{name:'Massage therapy · 60 min',fr:'Massothérapie · 60 min',short:'Massage',dur:60,online:true,who:'Waitlist only',whoFr:'Liste d’attente seulement',clins:['qw-moreau']}],open:{}},
+    {id:'hm',ini:'HM',name:'Harbour Mind Wellness',address:'25 Queens Quay E',lat:43.6413,lng:-79.3760,services:'Mental health, counselling',accepting:true,
+      clins:[{id:'hm-osei',name:'Grace Mensah, RP',short:'G. Mensah',role:'Psychotherapist',roleFr:'Psychothérapeute'}],
+      svcs:[{name:'Counselling · first session',fr:'Counseling · première séance',short:'Counselling, first session',dur:50,online:true,who:'New clients',whoFr:'Nouveaux clients',clins:['hm-osei']}],
+      open:{'hm-osei':['1:00','3:30']}},
   ],
+  me:{lat:43.6745,lng:-79.3905},
   notice:'Parking lot B is closed this week. Street parking on Elm Ave is free for 2 hours.',
   pNotifs:[
     {t:'Reminder: Physio today 9:00 am with Dr. Osei. Tap to confirm, or reschedule.',s:'Mon 9:00 am · push, then text',k:'info',act:'confirm'},
@@ -173,8 +190,18 @@ const state={
 // each status has its own colour (tokens.css --st-*); "out" draws an outlined dot: the patient isn't here yet
 const STATUS={booked:['s-booked out','Booked'],confirmed:['s-confirmed out','Confirmed'],checked:['s-checked','Checked in'],waiting:['s-waiting','Waiting'],invisit:['s-invisit','In visit'],done:['s-done','Complete'],late:['s-late out','Late'],noshow:['s-noshow out','No-show'],cancelled:['s-cancelled out','Cancelled']};
 const ACTIVE=q=>!['cancelled','noshow'].includes(q.status);
-const clinById=id=>state.clins.find(c=>c.id===id)||{name:id,short:id};
-const svcByName=n=>state.services.find(s=>s.name===n)||state.services[0];
+// ---------- clinic directory ----------
+// every clinic except Maple Grove keeps its own clinicians, services and today's bookings
+state.clinics.filter(c=>!c.home).forEach(c=>{c.appts=c.clins.flatMap(k=>TIMES.filter(t=>!(c.open[k.id]||[]).includes(t)).map(t=>({id:`${k.id}-${t}`,clin:k.id,time:t,status:'booked',name:'(booked)'})));c.blocks=[]});
+const clinicById=id=>state.clinics.find(c=>c.id===id)||state.clinics[0];
+const extClinicOf=clinId=>state.clinics.find(c=>!c.home&&c.clins.some(k=>k.id===clinId));
+const clinicSvcs=id=>{const c=clinicById(id);return c.home?state.services:c.svcs};
+const clinicClins=id=>{const c=clinicById(id);return c.home?state.clins:c.clins};
+const kmFrom=c=>{const R=6371,r=x=>x*Math.PI/180,dl=r(c.lat-state.me.lat),dg=r(c.lng-state.me.lng),a=Math.sin(dl/2)**2+Math.cos(r(state.me.lat))*Math.cos(r(c.lat))*Math.sin(dg/2)**2;return Math.round(R*2*Math.asin(Math.sqrt(a))*10)/10};
+const clinById=id=>state.clins.find(c=>c.id===id)||extClinicOf(id)?.clins.find(c=>c.id===id)||{name:id,short:id};
+const svcByName=n=>state.services.find(s=>s.name===n)||state.clinics.flatMap(c=>c.svcs||[]).find(s=>s.name===n)||state.services[0];
+// first time anyone can book online today, computed from the clinic's own schedule
+function nextOpening(c){if(!c.accepting)return null;const svcs=clinicSvcs(c.id).filter(s=>s.online),cl=[...new Set(svcs.flatMap(s=>s.clins))];return TIMES.find(t=>slotMin(t)>nowMin()&&cl.some(k=>['free','freed'].includes(slotState(k,t,'patient'))))||null}
 const pill=st=>{const [k,l]=STATUS[st]||['',st];return `<span class="pill st ${k}">${l}</span>`};
 const PKIND={info:'Reminder',warn:'To do',good:'Update',crit:'Urgent',mute:'Notice'}, SKIND={info:'Update',warn:'Change',good:'Done',crit:'Urgent',mute:'Notice'};
 const touch=()=>{state.lastChange=Date.now()};
@@ -189,8 +216,9 @@ function notifyPatient(t,s,k='info',act){state.pNotifs.unshift({t,s:`${clock12()
 function deliver(to,msg,ch,out){state.deliveries.unshift({t:clock(false),to,msg,ch,out})}
 
 // ---------- schedule queries ----------
-function blockAt(clin,time){return state.blocks.find(b=>b.clin===clin&&(b.time==='*'||b.time===time||(b.time.endsWith('+')&&tIdx(time)>=tIdx(b.time.slice(0,-1)))))}
-function apptAt(clin,time){return state.queue.find(q=>q.clin===clin&&q.time===time&&ACTIVE(q))}
+// schedule queries work for any clinic: a clinician id says whose schedule to read
+function blockAt(clin,time){return (extClinicOf(clin)?.blocks||state.blocks).find(b=>b.clin===clin&&(b.time==='*'||b.time===time||(b.time.endsWith('+')&&tIdx(time)>=tIdx(b.time.slice(0,-1)))))}
+function apptAt(clin,time){return (extClinicOf(clin)?.appts||state.queue).find(q=>q.clin===clin&&q.time===time&&ACTIVE(q))}
 const lockKey=(clin,time)=>clin+'|'+time;
 function lockAt(clin,time){const l=state.locks[lockKey(clin,time)];return l&&l.until>Date.now()?l:null}
 function freedAt(clin,time){return state.freed.find(f=>f.clin===clin&&f.time===time&&f.status!=='filled')}
@@ -208,7 +236,7 @@ function releaseLocks(owner){for(const k in state.locks)if(state.locks[k].owner=
 function commitBooking(entry,owner){
   if(blockAt(entry.clin,entry.time)||apptAt(entry.clin,entry.time))return false;
   const l=lockAt(entry.clin,entry.time);if(l&&l.owner!==owner)return false;
-  entry.id=state.nextId++;state.queue.push(entry);delete state.locks[lockKey(entry.clin,entry.time)];
+  entry.id=state.nextId++;(extClinicOf(entry.clin)?.appts||state.queue).push(entry);delete state.locks[lockKey(entry.clin,entry.time)];
   const f=freedAt(entry.clin,entry.time);if(f){f.status='filled';f.filledBy=entry.name;state.recovery.refilled++}
   touch();return true;
 }
@@ -260,7 +288,7 @@ function showScreen(root,id){
   if(hadFocus){const h=$('h2',a);if(h){h.tabIndex=-1;h.focus({preventScroll:true})}}
 }
 const NEEDS_SIGNIN=['home','appt','notifs','profile','history','family','checkin','intake','waitlist','offer'];
-function pgo(id){if(!state.pSigned&&NEEDS_SIGNIN.includes(id))id='signin';showScreen($('#p-screens'),id);cur.patient=id;syncHash();renderPatient()}
+function pgo(id){if(!state.pSigned&&NEEDS_SIGNIN.includes(id))id='signin';showScreen($('#p-screens'),id);cur.patient=id;syncHash();renderPatient();if(id==='find')setTimeout(mapShown,0)}
 function sgo(id){if(!state.staffUser)id='login';else if(!staffTabs().includes(id)&&!['patient'].includes(id))id='queue';showScreen($('#s-screens'),id);cur.staff=id;syncHash();renderStaff()}
 function wgo(id,btn){if(!state.webUser){cur.web=id;renderWeb();return}if(!webPages().includes(id))id=webPages()[0];$$('.page').forEach(p=>p.classList.toggle('active',p.dataset.p===id));setCurrent($$('.side button'),b=>b.dataset.p===id);if(cur.web!==id)$('.main').scrollTop=0;cur.web=id;syncHash();renderWeb()}
 const cur={surface:'patient',patient:'home',staff:'queue',web:'dash',calDate:CAL_BASE};
@@ -288,11 +316,11 @@ function smsTap(){const el=$('#p-sms');el.hidden=true;if(cur.patient==='otp'&&st
 
 // ---------- English / French for the screens anonymous patients use: the booking link and the check-in tablet ----------
 const PL={
-  en:{bookTitle:'Book a visit',bookIntro:"You opened Maple Grove Clinic's booking link. No account or password needed.",whoFor:'Who is this visit for?',step1:'Step 1 of 4 · Service',continue:'Continue',me:'Me',addSomeone:'+ Add',
+  en:{bookTitle:'Book a visit',bookIntro:'Booking at {name}. No account or password needed.',clinic:'Clinic',seeMap:'See clinics on a map',yourClinic:'your clinic',noneToday:'no openings today',noTimes:'{name} has no openings left today. Pick another clinic above, or join the waitlist.',whoFor:'Who is this visit for?',step1:'Step 1 of 4 · Service',continue:'Continue',me:'Me',addSomeone:'+ Add',
     book2Title:'Who and when',book2Resched:'Pick a new time',step2:'Step 2 of 4 · Clinician and time',clinician:'Clinician',day:'Tuesday, Sep 29',anyClin:'First available',anyRole:'Any clinician',notTue:'not in on Tuesdays',
     slotNote:'Dashed times were freed by a cancellation. Crossed-out times are taken or unavailable.',slotNoteOff:'This clinician is not in on Tuesdays. Join the waitlist to hear about other days.',joinWl:'Nothing works? Join the waitlist',move:'Move my visit',
     held:'{time} with {who} is held for you for {left}',holdExpired:'Your hold on that time ran out. Pick a time again.',pickTime:'Choose a time to continue.',slotBusy:'Someone at the front desk is booking that time right now. Pick another time.',slotGone:'Someone booked that time a moment ago. Pick another time.',
-    unavailable:'unavailable',taken:'taken',heldOther:'being booked by someone else',
+    unavailable:'unavailable',past:'already passed',taken:'taken',heldOther:'being booked by someone else',
     details:'Your details',step3:'Step 3 of 4 · Contact',fullName:'Full name',mobile:'Mobile number',email:'Email (optional)',
     smsConsent:'Text me reminders and waitlist offers. Message rates may apply. Reply STOP to opt out. Optional: without it we use push and email.',policy:'I agree to the 24-hour cancellation policy.',sendCode:'Send verification code',minData:'We ask for only your name and mobile number. Up to 2 unconfirmed bookings per number per day.',
     errName:'Enter your full name.',errPhone:'Enter a mobile number with area code, for example 416 555 0142.',errPolicy:'Please agree to the cancellation policy to book.',errLimit:'This number already has 2 unconfirmed bookings today. Confirm one with its code, or call the clinic at 416 555 0100.',
@@ -302,11 +330,11 @@ const PL={
     noReminder:'No reminders needed',noReminderSub:'Your visit is today. We send a push when check-in opens.',checkin:'Check in from your phone',checkinSub:'Opens 1 hour before, within 200 m of the clinic',
     k_welcome:'Welcome to {name}',k_intro:"Check in for today's visit. Enter the last 4 digits of your phone number.",k_clear:'Clear',k_del:'Delete',k_err4:'Enter the last 4 digits of your phone number.',k_none:"We couldn't find a visit today for that number. Please see the front desk.",
     k_isYou:'Is this you?',k_with:'{time} with {who}',k_notMe:"That's not me",k_privacy:'Only initials are shown here, for privacy.',k_done:"You're checked in",k_ticket:'Your ticket number. Please take a seat; the screen will call this number.',k_finish:'Done'},
-  fr:{bookTitle:'Prendre rendez-vous',bookIntro:'Vous avez ouvert le lien de réservation de la Maple Grove Clinic. Aucun compte ni mot de passe requis.',whoFor:'Pour qui est ce rendez-vous?',step1:'Étape 1 sur 4 · Service',continue:'Continuer',me:'Moi',addSomeone:'+ Ajouter',
+  fr:{bookTitle:'Prendre rendez-vous',bookIntro:'Réservation : {name}. Aucun compte ni mot de passe requis.',clinic:'Clinique',seeMap:'Voir les cliniques sur une carte',yourClinic:'votre clinique',noneToday:'aucune disponibilité aujourd’hui',noTimes:'{name} n’a plus de disponibilités aujourd’hui. Choisissez une autre clinique ou inscrivez-vous à la liste d’attente.',whoFor:'Pour qui est ce rendez-vous?',step1:'Étape 1 sur 4 · Service',continue:'Continuer',me:'Moi',addSomeone:'+ Ajouter',
     book2Title:'Avec qui et quand',book2Resched:'Choisir une nouvelle heure',step2:'Étape 2 sur 4 · Professionnel et heure',clinician:'Professionnel',day:'Mardi 29 septembre',anyClin:'Premier disponible',anyRole:"N'importe quel professionnel",notTue:'absent le mardi',
     slotNote:'Les heures en pointillé ont été libérées par une annulation. Les heures barrées sont prises ou non disponibles.',slotNoteOff:"Ce professionnel est absent le mardi. Inscrivez-vous à la liste d'attente pour d'autres journées.",joinWl:"Aucune heure ne convient? Liste d'attente",move:'Déplacer mon rendez-vous',
     held:'{time} avec {who} : réservé pour vous pendant {left}',holdExpired:'Votre réservation temporaire a expiré. Choisissez une heure de nouveau.',pickTime:'Choisissez une heure pour continuer.',slotBusy:"Quelqu'un à l'accueil réserve cette heure en ce moment. Choisissez une autre heure.",slotGone:"Quelqu'un vient de réserver cette heure. Choisissez une autre heure.",
-    unavailable:'non disponible',taken:'prise',heldOther:"en cours de réservation par quelqu'un d'autre",
+    unavailable:'non disponible',past:'déjà passée',taken:'prise',heldOther:"en cours de réservation par quelqu'un d'autre",
     details:'Vos coordonnées',step3:'Étape 3 sur 4 · Coordonnées',fullName:'Nom complet',mobile:'Numéro de cellulaire',email:'Courriel (facultatif)',
     smsConsent:"Envoyez-moi des rappels et des offres de la liste d'attente par texto. Des frais de messagerie peuvent s'appliquer. Répondez STOP pour vous désabonner. Facultatif : sinon, nous utilisons les notifications et le courriel.",policy:"J'accepte la politique d'annulation de 24 heures.",sendCode:'Envoyer le code de vérification',minData:'Nous demandons seulement votre nom et votre numéro de cellulaire. Maximum de 2 réservations non confirmées par numéro et par jour.',
     errName:'Entrez votre nom complet.',errPhone:"Entrez un numéro de cellulaire avec l'indicatif régional, par exemple 416 555 0142.",errPolicy:"Veuillez accepter la politique d'annulation pour réserver.",errLimit:"Ce numéro a déjà 2 réservations non confirmées aujourd'hui. Confirmez-en une avec son code ou appelez la clinique au 416 555 0100.",
@@ -326,12 +354,35 @@ const BOOK_SCREENS=['book','book2','book3','otp','confirmed'];
 function langSwitch(cur,fn){return [['en','English'],['fr','Français']].map(([k,l])=>`<button lang="${k}" aria-pressed="${cur===k}" onclick="${fn}('${k}')">${l}</button>`).join('')}
 function setPatientLang(l){state.pLang=l;renderPatient()}
 
-function startBooking(){const m=me();state.booking={mode:'new',service:state.services.find(s=>s.online).name,clin:'osei',time:null,who:'me'};releaseLocks('patient');showErr('p-slot-err');pgo('book')}
-function startReschedule(){const m=me();state.booking={mode:'resched',target:m.id,service:m.svcFull||'Physiotherapy · follow-up',clin:m.clin,time:null,who:'me'};releaseLocks('patient');showErr('p-slot-err');pgo('book2')}
+// ---------- clinic map (Leaflet + OpenStreetMap tiles; the list below it works without either) ----------
+// the tiles are toned down in CSS to sit inside the app's palette, and inverted for dark mode
+let pMap=null,pPins=null,pTiles=null,pFitted=false;
+function mapTiles(){if(!pMap||pTiles)return;pTiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(pMap)}
+function drawMap(list){
+  const el=$('#p-map');
+  if(!window.L){el.innerHTML='<p class="small muted map-off">The map needs an internet connection. Every clinic is in the list below.</p>';return}
+  if(!pMap){pMap=L.map(el,{zoomControl:false}).setView([state.me.lat,state.me.lng],12);L.control.zoom({position:'bottomright'}).addTo(pMap);mapTiles();pPins=L.layerGroup().addTo(pMap);
+    L.marker([state.me.lat,state.me.lng],{icon:L.divIcon({className:'',html:'<span class="me-dot"></span>',iconSize:[18,18]}),keyboard:false,interactive:false,alt:'You are here'}).addTo(pMap)}
+  pPins.clearLayers();
+  list.forEach(c=>pPins.addLayer(L.marker([c.lat,c.lng],{title:`${c.name}, ${c.km} km`,alt:c.name,riseOnHover:true,zIndexOffset:c.id===state.mapSel?1000:0,
+    icon:L.divIcon({className:'',html:`<span class="pin${c.accepting?'':' off'}${c.id===state.mapSel?' sel':''}">${c.ini}</span>`,iconSize:[36,36],iconAnchor:[18,18]})}).on('click',()=>selectMapClinic(c.id))));
+}
+// the map only has a size once its screen is showing
+// zoom 12 frames every directory clinic in the phone-sized map; a fixed view doesn't depend on measuring a hidden pane
+function mapShown(){if(!pMap)return;pMap.invalidateSize();if(!pFitted){pFitted=true;pMap.setView(L.latLngBounds(state.clinics.map(c=>[c.lat,c.lng]).concat([[state.me.lat,state.me.lng]])).getCenter(),12)}}
+function selectMapClinic(id){state.mapSel=id;renderPatient();const c=clinicById(id);if(pMap){mapShown();pMap.panTo([c.lat,c.lng])}}
+
+function freshBooking(clinic){const s=clinicSvcs(clinic).find(x=>x.online);return {mode:'new',clinic,service:s.name,clin:s.clins[0],time:null,who:state.booking?.who||'me'}}
+function startBooking(clinic='mg'){const c=clinicById(clinic);if(!c.accepting){toast('p',`${c.name} isn't taking new bookings. Join their waitlist from Other clinics.`);return}state.booking=freshBooking(clinic);state.booking.who='me';releaseLocks('patient');showErr('p-slot-err');pgo('book')}
+// switching clinic mid-booking starts the choices over with that clinic's own services and clinicians
+function pickClinic(id){const who=state.booking.who;state.booking=freshBooking(id);state.booking.who=who;releaseLocks('patient');showErr('p-slot-err');renderPatient()}
+function startReschedule(){const m=me();state.booking={mode:'resched',clinic:'mg',target:m.id,service:m.svcFull||'Physiotherapy · follow-up',clin:m.clin,time:null,who:'me'};releaseLocks('patient');showErr('p-slot-err');pgo('book2')}
+function bookWaitlist(){const c=clinicById(state.booking.clinic);if(c.home)return pgo('waitlist');toast('p',`Added to ${c.name}'s waitlist. They'll text you if a time opens.`)}
 function pickService(name){state.booking.service=name;const s=svcByName(name);if(!s.clins.includes(state.booking.clin))state.booking.clin=s.clins[0];state.booking.time=null;releaseLocks('patient');renderPatient()}
 function pickClin(id){state.booking.clin=id;state.booking.time=null;releaseLocks('patient');showErr('p-slot-err');renderPatient()}
 function candidateClins(){const s=svcByName(state.booking.service);return state.booking.clin==='any'?s.clins:[state.booking.clin]}
 function patientSlot(t){
+  if(slotMin(t)<=nowMin())return {clin:null,state:'past'};
   const ignore=state.booking.mode==='resched'?state.booking.target:undefined;
   const sts=candidateClins().map(c=>[c,slotState(c,t,'patient',ignore)]);
   const ok=sts.find(([,s])=>s==='free'||s==='freed');
@@ -362,10 +413,10 @@ function sendCode(){
   showErr('p-details-err');state.otp.pending[ph]=pend+1;state.otp.code=newCode();state.otp.phone=ph;
   $('#p-otp-to').textContent=tr('otpTo',{phone:$('#p-phone').value.trim()});
   $$('#p-otp input').forEach(i=>i.value='');showErr('p-otp-err');
-  pgo('otp');smsBanner(`ClinicFlow: ${state.otp.code} is your Maple Grove Clinic code. Don't share it.`);
+  pgo('otp');smsBanner(`ClinicFlow: ${state.otp.code} is your ${clinicById(state.booking.clinic).name} code. Don't share it.`);
   setTimeout(()=>$('#p-otp input')?.focus(),50);
 }
-function resendCode(){state.otp.code=newCode();smsBanner(`ClinicFlow: ${state.otp.code} is your new Maple Grove Clinic code.`);toast('p',tr('newCode'))}
+function resendCode(){state.otp.code=newCode();smsBanner(`ClinicFlow: ${state.otp.code} is your new ${clinicById(state.booking.clinic).name} code.`);toast('p',tr('newCode'))}
 function fillCode(){if(!state.otp.code)return;[...state.otp.code].forEach((d,i)=>$$('#p-otp input')[i].value=d)}
 function confirmBooking(){
   const code=$$('#p-otp input').map(i=>i.value).join('');
@@ -375,15 +426,21 @@ function confirmBooking(){
   const b=state.booking,who=whoName(),svc=svcByName(b.service);
   // the phone code is the confirmation: a verified booking doesn't need a second "please confirm"
   const entry={name:who,clin:b.lockedClin,time:b.time,svc:svc.short,svcFull:svc.name,status:'confirmed',forms:false,phone:state.otp.phone.slice(-4),mine:true,guardian:who!=='Priya Raman'};
+  const cl=clinicById(b.clinic);entry.clinic=cl.id;
   if(!commitBooking(entry,'patient')){b.time=null;pgo('book2');showErr('p-slot-err',tr('slotGone'));return}
   state.otp.pending[state.otp.phone]=Math.max(0,(state.otp.pending[state.otp.phone]||1)-1);state.otp.code=null;
+  state.pSigned=true;state.lastBooked=entry;
+  // a booking at another clinic belongs to that clinic: Maple Grove's staff, alerts and audit log never see it
+  if(!cl.home){
+    notifyPatient(`Booked${entry.guardian?' for '+who.split(' ')[0]:''}: ${svc.short}, Tue Sep 29, ${ampm(entry.time)} with ${clinById(entry.clin).short} at ${cl.name}, ${cl.address}.`,'text and email','good');
+    return pgo('confirmed');
+  }
   if($('#p-c1').checked&&!state.consent.sms){state.consent={sms:true,at:'Sep 29, 2026'};logAudit(PATIENT,'consent.sms.granted','PAT-0142','Text reminders consent captured at booking')}
-  state.pSigned=true;
   logAudit(entry.guardian?'Priya Raman (guardian)':PATIENT,'appointment.create','APT-'+(20900+entry.id),`${svc.short} · ${clinById(entry.clin).short} · Tue ${ampm(entry.time)} · phone verified · guest link`);
   notifyPatient(`Booked${entry.guardian?' for '+who.split(' ')[0]:''}: ${svc.short}, Tue Sep 29, ${ampm(entry.time)} with ${clinById(entry.clin).short}.`,'text and email','good');
   alertStaff(`New online booking: ${who}, ${ampm(entry.time)} with ${clinById(entry.clin).short} (${entry.guardian?'booked by guardian Priya Raman':'guest'}, phone verified).`,'info');
   deliver(who,'Booking confirmation','Push, then text, then email','Delivered');
-  state.lastBooked=entry.id;pgo('confirmed');
+  pgo('confirmed');
 }
 function confirmReschedule(){
   const b=state.booking,q=state.queue.find(x=>x.id===b.target),old={clin:q.clin,time:q.time};
@@ -462,7 +519,7 @@ function updateLocks(){
   $$('.p-lockbar').forEach(el=>{el.hidden=!left;if(!left)return;const sp=el.querySelector('span');const txt=tr('held',{time:fmtT(b.time),who:clinById(b.lockedClin).short,left});if(sp)sp.textContent=txt;else el.innerHTML=`${ic('lock')} <span>${esc(txt)}</span>`});
   const m=state.manual,ml=$('#w-mb-lock');if(m&&ml){const lk=m.time&&lockAt(m.clin,m.time);ml.hidden=!lk;if(lk)ml.lastChild.textContent=` ${ampm(m.time)} is held for you for ${Math.max(0,Math.round((lk.until-Date.now())/1000))} s. Nobody else can book it meanwhile.`}
 }
-function bookingSummary(svc,who,clin,time){return `<b>${esc(svcLabel(svc))}</b><br>${tr('forWho',{name:esc(who)})}<br>${esc(clinById(clin).name)}<br>${tr('dayShort')} · ${time?fmtT(time):tr('timeNotChosen')}<br>Maple Grove Clinic, 214 Elm Ave`}
+function bookingSummary(svc,who,clin,time,clinic){const c=clinicById(clinic);return `<b>${esc(svcLabel(svc))}</b><br>${tr('forWho',{name:esc(who)})}<br>${esc(clinById(clin).name)}<br>${tr('dayShort')} · ${time?fmtT(time):tr('timeNotChosen')}<br>${esc(c.name)}, ${esc(c.address)}`}
 
 function renderPatient(){
   const q=me(),b=state.booking;
@@ -476,7 +533,11 @@ function renderPatient(){
   $('#p-reason-todo').innerHTML=reasonDone?'<span class="pill good">Done</span><div class="grow"><div class="t">Reason for visit</div><div class="s">Submitted</div></div>':'<span class="pill warn">Open</span><div class="grow"><div class="t">Reason for visit</div><div class="s">2 min · needed before your visit</div></div><button class="btn sm" onclick="pgo(\'intake\')">Fill in</button>';
   $('#p-consent-line').textContent=state.consent.sms?`Text reminders on since ${state.consent.at}`:'Text reminders off · push and email only';
   $('#p-notice').textContent=state.notice;
-  $('#p-near-count').textContent=`${state.directory.filter(c=>c.accepting&&!c.self).length} nearby accepting patients`;
+  $('#p-near-count').textContent=`${state.clinics.filter(c=>c.accepting&&!c.home).length} nearby accepting patients`;
+  // visits booked at other clinics through the directory
+  const other=state.clinics.filter(c=>!c.home).flatMap(c=>c.appts.filter(a=>a.mine&&ACTIVE(a)).map(a=>({...a,c})));
+  $('#p-other').hidden=!other.length;
+  $('#p-other').innerHTML=other.length?`<h3>Also booked</h3><div class="list">${other.map(a=>`<div class="item"><div class="grow"><div class="t">${ampm(a.time)} · ${esc(a.svc)}</div><div class="s">${esc(clinById(a.clin).name)} · ${esc(a.c.name)}, ${esc(a.c.address)}${forLabel(a.name)}</div></div>${pill(a.status)}</div>`).join('')}</div><p class="small muted">Booked through the ClinicFlow directory. To change or cancel, use the link in that clinic's confirmation text.</p>`:'';
   const h=$('#p-hero');
   if(!q||q.status==='cancelled'||q.status==='noshow')h.innerHTML=`<p class="eyebrow">No upcoming visit</p><h3>Book when you're ready</h3><div class="row"><button class="btn" onclick="startBooking()">Book a visit</button></div>`;
   else if(q.status==='checked'||q.status==='waiting'){const ahead=queueAhead(q);h.innerHTML=`<p class="eyebrow">${q.status==='checked'?'The front desk is adding you to the queue':ahead?`${ahead} ${ahead===1?'person':'people'} ahead of you · about ${Math.max(3,ahead*5+3)} min`:"You're next"}</p><h3>Checked in · ticket ${q.ticket}</h3><p style="margin-bottom:10px;opacity:.9">We'll send a push when it's your turn.</p><div class="row"><button class="btn" onclick="pgo('checkin')">See your place</button></div>`}
@@ -484,30 +545,43 @@ function renderPatient(){
   else if(q.status==='done')h.innerHTML=`<p class="eyebrow">Visit complete</p><h3>Thanks, Priya</h3><p style="margin-bottom:10px;opacity:.9">Book your next follow-up while it's fresh.</p><div class="row"><button class="btn" onclick="startBooking()">Book follow-up</button></div>`;
   // the action that matters most comes first and is the filled one: confirm, then "I'm here"
   else h.innerHTML=`<p class="eyebrow">Next visit · today, Tue Sep 29 · ${q.status==='confirmed'?'confirmed':q.status==='late'?'you are running late':'please confirm'}</p><h3>${ampm(q.time)} · ${esc(q.svc)}</h3><p style="margin-bottom:10px;opacity:.9">${clinById(q.clin).name} · Maple Grove Clinic${forLabel(q.name)}</p><div class="row">${q.status==='booked'?`<button class="btn" onclick="confirmVisit()">Confirm I'm coming</button>`:`<button class="btn" onclick="pgo('checkin')">I'm here</button>`}<button class="btn" onclick="pgo('appt')">Manage visit</button></div>`;
-  // directory
+  // clinic directory: map and list show the same clinics, nearest first, with openings read from each clinic's schedule
+  const dir=state.clinics.map(c=>({...c,km:kmFrom(c),next:nextOpening(c)})).sort((x,y)=>x.km-y.km);
   const term=($('#p-find')?.value||'').toLowerCase().trim();
-  const list=state.directory.filter(c=>(!term||(c.name+' '+c.services).toLowerCase().includes(term.replace(/therapy$/,'')))&&(state.findFilter==='all'||(state.findFilter==='accepting'?c.accepting:c.today)));
+  const list=dir.filter(c=>(!term||(c.name+' '+c.services).toLowerCase().includes(term.replace(/therapy$/,'')))&&(state.findFilter==='all'||(state.findFilter==='accepting'?c.accepting:!!c.next)));
   $$('#p-find-filter button').forEach(x=>x.setAttribute('aria-pressed',x.getAttribute('onclick').includes(`'${state.findFilter}'`)));
-  $('#p-clinics').innerHTML=list.length?list.map(c=>`<div class="item"><div class="avatar">${c.ini}</div><div class="grow"><div class="t">${c.name}</div><div class="s">${c.dist} km · ${c.services} · ${c.next}</div></div>${c.self?'<button class="btn sm primary" onclick="startBooking()">Book</button>':c.accepting?`<button class="btn sm" onclick="toast('p','Opens ${c.name}&#39;s booking page')">Book</button>`:`<button class="btn sm" onclick="toast('p','Added to ${c.name}&#39;s waitlist')">Join list</button>`}</div>`).join(''):'<div class="item"><div class="s">No clinics match. Try "physio" or switch the filter to All.</div></div>';
+  const nextTxt=c=>!c.accepting?'Waitlist only':c.next?`Next opening today ${ampm(c.next)}`:'No openings today';
+  const dirBtn=(c,primary)=>c.accepting&&c.next?`<button class="btn sm${primary?' primary':''}" onclick="startBooking('${c.id}')" aria-label="Book at ${esc(c.name)}">Book</button>`:`<button class="btn sm" onclick="toast('p','Added to ${esc(c.name)}&#39;s waitlist. They&#39;ll text you if a time opens.')" aria-label="Join ${esc(c.name)}'s waitlist">Join waitlist</button>`;
+  $('#p-clinics').innerHTML=list.length?list.map(c=>`<div class="item${c.id===state.mapSel?' sel':''}"><button class="dirsel grow" onclick="selectMapClinic('${c.id}')"><span class="t">${esc(c.name)}${c.home?' <span class="pill acc">Your clinic</span>':''}</span><span class="s">${c.km} km · ${esc(c.services)}</span><span class="s ${c.next?'open':''}">${nextTxt(c)}</span></button>${dirBtn(c,false)}</div>`).join(''):'<div class="item"><div class="s">No clinics match. Try "physio" or switch the filter to All.</div></div>';
+  const sel=dir.find(c=>c.id===state.mapSel&&list.includes(c));
+  $('#p-map-card').innerHTML=sel?`<div class="grow"><div class="t">${esc(sel.name)}</div><div class="s">${esc(sel.address)} · ${sel.km} km · ${esc(sel.services)}</div><div class="s ${sel.next?'open':''}">${nextTxt(sel)}</div></div>${dirBtn(sel,true)}`:'<p class="small muted">Tap a pin to see that clinic’s openings today.</p>';
+  if(cur.patient==='find')drawMap(list);
   // booking
   $('#p-who').innerHTML=[['me',tr('me')],...state.family.map(f=>[f.id,f.name.split(' ')[0]])].map(([id,l])=>`<button aria-pressed="${b.who===id}" onclick="state.booking.who='${id}';renderPatient()">${esc(l)}</button>`).join('')+`<button aria-pressed="false" onclick="state.famFrom='book';pgo('family')">${tr('addSomeone')}</button>`;
-  $('#p-services').innerHTML=state.services.filter(s=>s.online).map(s=>`<button class="choice" aria-pressed="${b.service===s.name}" onclick="pickService(this.dataset.n)" data-n="${esc(s.name)}"><div class="grow"><div class="t">${esc(svcLabel(s))}</div><div class="s small muted">${s.dur} min · ${state.pLang==='fr'&&s.whoFr?s.whoFr:s.who}</div></div></button>`).join('');
+  // the clinic dropdown: every clinic in the directory that takes online bookings, nearest first
+  const bc=clinicById(b.clinic);
+  $('#p-clinic').innerHTML=dir.filter(c=>c.accepting).map(c=>`<option value="${c.id}" ${c.id===bc.id?'selected':''}>${esc(c.name)} · ${c.km} km${c.home?' · '+tr('yourClinic'):''}${c.next?'':' · '+tr('noneToday')}</option>`).join('');
+  $('#p-clinic').disabled=b.mode==='resched';
+  $('[data-s="book"] [data-t="bookIntro"]').textContent=tr('bookIntro',{name:bc.name});
+  $('#p-services').innerHTML=clinicSvcs(bc.id).filter(s=>s.online).map(s=>`<button class="choice" aria-pressed="${b.service===s.name}" onclick="pickService(this.dataset.n)" data-n="${esc(s.name)}"><div class="grow"><div class="t">${esc(svcLabel(s))}</div><div class="s small muted">${s.dur} min · ${state.pLang==='fr'&&s.whoFr?s.whoFr:s.who}</div></div></button>`).join('');
   const svc=svcByName(b.service),res=b.mode==='resched';
   $('#p-book2-title').textContent=res?tr('book2Resched'):tr('book2Title');$('#p-book2-steps').hidden=res;$('#p-clin-label').textContent=res?tr('clinician'):tr('step2');
   $('#p-book2-next').textContent=res?tr('move'):tr('continue');
   const clinOpts=svc.clins.map(id=>clinById(id)).concat(svc.clins.length>1?[{id:'any',name:tr('anyClin'),role:tr('anyRole')}]:[]);
   $('#p-clin').innerHTML=clinOpts.map(c=>`<button class="choice" aria-pressed="${b.clin===c.id}" onclick="pickClin('${c.id}')"><div class="avatar" aria-hidden="true">${c.id==='any'?'·':initials(c.name)}</div><div class="grow"><div class="t">${esc(c.name)}</div><div class="small muted">${esc(c.id==='any'?c.role:roleLabel(c))}${c.id!=='any'&&capacity(c.id)===0?' · '+tr('notTue'):''}</div></div></button>`).join('');
-  const lab={taken:tr('taken'),blocked:tr('unavailable'),held:tr('heldOther')};
+  const lab={taken:tr('taken'),blocked:tr('unavailable'),held:tr('heldOther'),past:tr('past')};
   $('#p-slots').innerHTML=TIMES.map(t=>{const s=patientSlot(t),sel=b.time===t;const dis=!s.clin&&!sel;return `<button aria-pressed="${sel}" class="${s.state==='freed'?'freed':''}" ${dis?'disabled':''} aria-label="${fmtT(t)}${dis?', '+lab[s.state]:''}" onclick="selectSlot('${t}')">${fmtT(t)}</button>`}).join('');
-  $('#p-slot-note').textContent=capacity(b.clin==='any'?svc.clins[0]:b.clin)===0?tr('slotNoteOff'):tr('slotNote');
-  const sum=bookingSummary(svc,whoName(),b.lockedClin&&b.time?b.lockedClin:b.clin,b.time);
+  $('#p-slot-note').textContent=capacity(b.clin==='any'?svc.clins[0]:b.clin)===0?tr('slotNoteOff'):!TIMES.some(t=>patientSlot(t).clin||b.time===t)?tr('noTimes',{name:bc.name}):tr('slotNote');
+  $('[data-s="book2"] [data-t="day"]').textContent=`${tr('day')} · ${bc.name}`;
+  const sum=bookingSummary(svc,whoName(),b.lockedClin&&b.time?b.lockedClin:b.clin,b.time,bc.id);
   $('#p-summary').innerHTML=sum;$('#p-summary3').innerHTML=sum;
   updateLocks();
-  const lb=state.queue.find(x=>x.id===state.lastBooked);
-  $('#p-summary2').innerHTML=lb?bookingSummary(svcByName(lb.svcFull),lb.name,lb.clin,lb.time):'';
+  const lb=state.lastBooked;
+  $('#p-summary2').innerHTML=lb?bookingSummary(svcByName(lb.svcFull),lb.name,lb.clin,lb.time,lb.clinic):'';
   $('#p-confirmed-title').textContent=lb&&lb.guardian?tr('bookedFor',{name:lb.name.split(' ')[0]}):tr('booked');
-  // every prototype booking is for today, so the timeline is the same-day one: no 48 h / 24 h reminders to promise
-  $('#p-next').innerHTML=`${lb&&!lb.forms?`<div class="item"><span class="pill warn">${tr('now')}</span><div class="grow"><div class="t">${tr('form')}</div><div class="s">${tr('formSub')}</div></div><button class="btn sm" onclick="pgo('intake')">${tr('fill')}</button></div>`:''}<div class="item"><span class="pill mute">${tr('today')}</span><div class="grow"><div class="t">${tr('noReminder')}</div><div class="s">${tr('noReminderSub')}</div></div></div><div class="item"><span class="pill mute">${tr('today')}</span><div class="grow"><div class="t">${tr('checkin')}</div><div class="s">${tr('checkinSub')}</div></div></div>`;
+  // every prototype booking is for today, so the timeline is the same-day one: no 48 h / 24 h reminders to promise.
+  // The reason-for-visit form is Maple Grove's; another clinic sends its own forms.
+  $('#p-next').innerHTML=`${lb&&lb.clinic==='mg'&&!lb.forms?`<div class="item"><span class="pill warn">${tr('now')}</span><div class="grow"><div class="t">${tr('form')}</div><div class="s">${tr('formSub')}</div></div><button class="btn sm" onclick="pgo('intake')">${tr('fill')}</button></div>`:''}<div class="item"><span class="pill mute">${tr('today')}</span><div class="grow"><div class="t">${tr('noReminder')}</div><div class="s">${tr('noReminderSub')}</div></div></div><div class="item"><span class="pill mute">${tr('today')}</span><div class="grow"><div class="t">${tr('checkin')}</div><div class="s">${tr('checkinSub')}</div></div></div>`;
   // your visit
   if(q){
     $('#p-apptcard').innerHTML=`<div class="row between"><p class="eyebrow">Today, Tue Sep 29</p>${pill(q.status)}</div><h3 style="font-size:20px;margin:4px 0">${ampm(q.time)} · ${esc(q.svc)}</h3><p class="small muted">${esc(q.svcFull||q.svc)} · ${clinById(q.clin).name} · Maple Grove Clinic, 214 Elm Ave${forLabel(q.name)}</p><div class="row" style="margin-top:10px;gap:var(--space-sm)"><span class="pill ${q.forms?'good':'warn'}">Forms ${q.forms?'done':'1 open'}</span><span class="pill mute">Ref APT-${20900+q.id}</span></div>`;
@@ -874,7 +948,7 @@ function formsAll(){state.queue.filter(q=>ACTIVE(q)&&!q.forms&&!['done','invisit
 
 // ---------- theme ----------
 function syncThemeButton(){const dark=document.documentElement.dataset.theme==='dark';$('#theme-toggle').setAttribute('aria-pressed',dark);$('#theme-label').textContent=dark?'Light mode':'Dark mode'}
-function toggleTheme(){const dark=document.documentElement.dataset.theme!=='dark';if(dark)document.documentElement.dataset.theme='dark';else delete document.documentElement.dataset.theme;try{localStorage.setItem('cf-theme',dark?'dark':'light')}catch(e){}syncThemeButton()}
+function toggleTheme(){const dark=document.documentElement.dataset.theme!=='dark';if(dark)document.documentElement.dataset.theme='dark';else delete document.documentElement.dataset.theme;try{localStorage.setItem('cf-theme',dark?'dark':'light')}catch(e){}syncThemeButton();mapTiles()}
 
 // ---------- demo tools: presenter shortcuts that stay out of the product screens ----------
 function toggleDemo(){const d=$('#demo'),open=d.hidden;d.hidden=!open;$('#demo-toggle').setAttribute('aria-expanded',open);if(open){renderDemo();$('#demo-h').tabIndex=-1;$('#demo-h').focus()}else $('#demo-toggle').focus()}
