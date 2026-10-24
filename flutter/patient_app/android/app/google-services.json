@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "752096575525",
+    "project_id": "clinicflow-9e598",
+    "storage_bucket": "clinicflow-9e598.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:752096575525:android:62ebc31bc209d3f1287fcc",
+        "android_client_info": {
+          "package_name": "ca.clinicflow.clinicflow_patient"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNEUnNpKX3oCccNXnVTN_kOyAibl6GG4A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

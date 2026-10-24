@@ -1,0 +1,4 @@
+# Firebase emulator logs and exported data
+*-debug.log
+emulator-data/
+.firebase/

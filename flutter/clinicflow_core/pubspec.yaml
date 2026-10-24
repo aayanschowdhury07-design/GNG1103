@@ -1,0 +1,20 @@
+name: clinicflow_core
+description: "Shared code for the ClinicFlow apps: data models, booking rules, the backend interface, sample data, theme and English/French text."
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.5
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  google_fonts: ^9.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:

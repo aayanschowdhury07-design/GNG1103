@@ -1,0 +1,241 @@
+rules_version = '2';
+
+// ClinicFlow security rules: used by the local emulators AND the live project, so they are
+// tested before they are deployed (see tools/rules_check.js).
+//
+// Who's who:
+//   - visitors get an anonymous sign-in: they may browse the directory and hold a time;
+//   - patients are signed in with a verified phone number: they see and change only their own records;
+//   - clinic staff sign in to the staff website with email and password. Their record at
+//     clinics/{clinic}/staff/{uid} gives their role:
+//       admin      everything, including setup, rules, staff and the audit log
+//       frontdesk  runs the day: calendar, booking, check-in, queue, waitlist, missed visits
+//       clinician  their own patients only (staff record says which clinician they are)
+//       support    the waiting-room queue, read-only
+//     Whoever creates a clinic (with a verified email) becomes its first admin; others join
+//     through an invitation sent to their verified email address;
+//   - the ClinicFlow team (platformAdmins/{uid}, added only from the Firebase console) reviews
+//     new clinics. A clinic goes draft → pending (submitted when setup is finished) →
+//     approved or rejected. Only an approved clinic takes online bookings, and only the team
+//     can approve; a rejected clinic can fix its details and resubmit.
+// Booking still runs in the apps for now. Before launch it moves to Cloud Functions, and the
+// slot/appointment/queue write rules below shrink to "functions only".
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function patient() { return signedIn() && request.auth.token.firebase.sign_in_provider == 'phone'; }
+    function staffAccount() { return signedIn() && request.auth.token.firebase.sign_in_provider == 'password'; }
+    function verifiedEmail() { return staffAccount() && request.auth.token.email_verified == true; }
+    function now() { return request.time.toMillis(); }
+    function clinicPath(clinicId) { return /databases/$(database)/documents/clinics/$(clinicId); }
+    function staffPath(clinicId) { return /databases/$(database)/documents/clinics/$(clinicId)/staff/$(request.auth.uid); }
+    function isStaff(clinicId) { return staffAccount() && exists(staffPath(clinicId)); }
+    function role(clinicId) { return get(staffPath(clinicId)).data.role; }
+    function isAdmin(clinicId) { return isStaff(clinicId) && role(clinicId) == 'admin'; }
+    // admins and the front desk run the day
+    function runsDay(clinicId) { return isStaff(clinicId) && role(clinicId) in ['admin', 'frontdesk']; }
+    // a clinician-role account, acting on its own clinician's patients
+    function ownClinician(clinicId, clinicianId) {
+      return isStaff(clinicId) && role(clinicId) == 'clinician'
+        && get(staffPath(clinicId)).data.get('clinicianId', '') == clinicianId;
+    }
+    function canAct(clinicId) { return isStaff(clinicId) && role(clinicId) != 'support'; }
+    // a time's document id: clinician, day and start minute, e.g. osei_2026-10-23_540
+    function slotKey(data) { return data.clinicianId + '_' + data.date + '_' + string(data.minute); }
+    // the ClinicFlow team, who approve clinics
+    function isPlatformAdmin() { return verifiedEmail() && exists(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)); }
+    function approval(data) { return data.get('approval', 'draft'); }
+    function approved(clinicId) { return approval(get(clinicPath(clinicId)).data) == 'approved'; }
+
+    // the ClinicFlow team: each member can see their own record; it's only ever added from the console
+    match /platformAdmins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // ---- the directory: public, and nothing in it identifies a patient
+    match /clinics/{clinicId} {
+      allow read: if true;
+      // a new clinic is created by someone with a verified email, together with their admin
+      // record (see staff below), and starts as a draft
+      allow create: if verifiedEmail()
+        && request.resource.data.ownerUid == request.auth.uid
+        && approval(request.resource.data) == 'draft'
+        && existsAfter(staffPath(clinicId));
+      // its admins edit it, but never the review: they can only submit it (or resubmit after a rejection)
+      allow update: if isAdmin(clinicId)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['approvalNote', 'reviewedAt', 'reviewedBy'])
+        && (approval(request.resource.data) == approval(resource.data)
+          || (approval(resource.data) in ['draft', 'rejected'] && approval(request.resource.data) == 'pending'));
+      // the ClinicFlow team decides, and touches nothing else
+      allow update: if isPlatformAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approval', 'approvalNote', 'reviewedAt', 'reviewedBy'])
+        && approval(request.resource.data) in ['approved', 'rejected']
+        && request.resource.data.reviewedBy == request.auth.uid;
+      allow delete: if false;
+
+      match /clinicians/{id} { allow read: if true; allow write: if isAdmin(clinicId); }
+      match /services/{id} { allow read: if true; allow write: if isAdmin(clinicId); }
+      match /blocks/{id} { allow read: if true; allow write: if isAdmin(clinicId); }
+
+      // who works here and in what role; staff read their colleagues, admins manage the list
+      match /staff/{uid} {
+        // the ClinicFlow team reads who runs a clinic, to contact the owner about its review
+        allow read: if isStaff(clinicId) || (staffAccount() && uid == request.auth.uid) || isPlatformAdmin();
+        allow create: if staffAccount() && uid == request.auth.uid && request.resource.data.uid == request.auth.uid && (
+          // the clinic's owner becomes its first admin, in the same write that creates the clinic
+          (request.resource.data.role == 'admin'
+            && getAfter(clinicPath(clinicId)).data.ownerUid == request.auth.uid
+            && !exists(clinicPath(clinicId)))
+          // or someone joins with the invitation sent to their verified email, in the role it gives
+          || (verifiedEmail()
+            && exists(/databases/$(database)/documents/clinics/$(clinicId)/invites/$(request.auth.token.email.lower()))
+            && request.resource.data.role == get(/databases/$(database)/documents/clinics/$(clinicId)/invites/$(request.auth.token.email.lower())).data.role
+            && request.resource.data.get('clinicianId', null) == get(/databases/$(database)/documents/clinics/$(clinicId)/invites/$(request.auth.token.email.lower())).data.get('clinicianId', null)
+            && !existsAfter(/databases/$(database)/documents/clinics/$(clinicId)/invites/$(request.auth.token.email.lower())))
+        );
+        // admins manage everyone else; nobody can change or remove their own role
+        allow update, delete: if isAdmin(clinicId) && uid != request.auth.uid;
+      }
+      // invitations waiting for a colleague; the invited person sees and uses only their own
+      match /invites/{email} {
+        allow read, write: if isAdmin(clinicId);
+        allow read, delete: if verifiedEmail() && email == request.auth.token.email.lower();
+      }
+
+      // "taken" markers, one per clinician, day and start time: the double-booking guard.
+      // A slot can only be created together with its appointment, and never overwritten.
+      // Patients book online only at approved clinics; a clinic's own front desk can always book.
+      match /slots/{slotId} {
+        allow read: if true;
+        allow create: if slotId == slotKey(request.resource.data) && (
+          (patient()
+            && approved(clinicId)
+            && getAfter(/databases/$(database)/documents/clinics/$(clinicId)/appointments/$(request.resource.data.appointmentId)).data.patientUid == request.auth.uid)
+          || (runsDay(clinicId)
+            && existsAfter(/databases/$(database)/documents/clinics/$(clinicId)/appointments/$(request.resource.data.appointmentId)))
+        );
+        allow update: if false;
+        // freeing a time: by the patient whose appointment holds it (cancel, reschedule), or the front desk
+        allow delete: if runsDay(clinicId) || (patient() && resource.data.appointmentId != null
+          && get(/databases/$(database)/documents/clinics/$(clinicId)/appointments/$(resource.data.appointmentId)).data.patientUid == request.auth.uid);
+      }
+
+      // a time held for up to 5 minutes while someone books it
+      match /holds/{slotId} {
+        allow read: if true;
+        allow create, update: if signedIn()
+          && request.resource.data.holderUid == request.auth.uid
+          && request.resource.data.expiresAt <= now() + 6 * 60 * 1000
+          && (resource == null || resource.data.holderUid == request.auth.uid || resource.data.expiresAt < now());
+        // released by its holder, once expired, or as part of the booking that used it
+        // (the person may have signed in with their phone in between, so their uid changed)
+        allow delete: if signedIn()
+          && (resource.data.holderUid == request.auth.uid || resource.data.expiresAt < now() || existsAfter(/databases/$(database)/documents/clinics/$(clinicId)/slots/$(slotId)));
+      }
+
+      // full appointment records: a patient reads and changes only their own; staff by role
+      match /appointments/{apptId} {
+        allow read: if (patient() && resource.data.patientUid == request.auth.uid)
+          || runsDay(clinicId) || ownClinician(clinicId, resource.data.clinicianId);
+        allow create: if (patient()
+            && request.resource.data.patientUid == request.auth.uid
+            && request.resource.data.status == 'confirmed'
+            && existsAfter(/databases/$(database)/documents/clinics/$(clinicId)/slots/$(slotKey(request.resource.data))))
+          // a front-desk booking: recorded as theirs, unconfirmed until the patient taps the reminder
+          || (runsDay(clinicId)
+            && request.resource.data.bookedBy == request.auth.uid
+            && request.resource.data.status == 'booked'
+            && request.resource.data.patientUid == null
+            && existsAfter(/databases/$(database)/documents/clinics/$(clinicId)/slots/$(slotKey(request.resource.data))));
+        // a patient moving to a new day and time does it together with the new slot (see slots)
+        allow update: if (patient()
+            && resource.data.patientUid == request.auth.uid
+            && request.resource.data.patientUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'formsDone', 'intake', 'clinicianId', 'date', 'minute', 'ticket', 'checkedInAt'])
+            && request.resource.data.status in ['booked', 'confirmed', 'checkedIn', 'cancelled'])
+          // staff move a visit along; they never change who it's for, when, or the intake answers
+          || ((runsDay(clinicId) || ownClinician(clinicId, resource.data.clinicianId))
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'ticket', 'checkedInAt', 'waitingSince', 'calledAt', 'followUp', 'cancelledBy']));
+        allow delete: if false;
+      }
+
+      // the waiting-room queue: ticket numbers only, one list per day ({date}_{ticket})
+      match /queue/{entry} {
+        allow read: if true;
+        allow create: if (patient() || canAct(clinicId)) && request.resource.data.status == 'checkedIn'
+          && entry == request.resource.data.date + '_' + request.resource.data.ticket;
+        allow update: if canAct(clinicId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+        allow delete: if false;
+      }
+      match /counters/{name} {
+        allow read: if signedIn();
+        allow write: if (patient() || canAct(clinicId)) && request.resource.data.next == (resource == null ? 1 : resource.data.next) + 1;
+      }
+
+      // people waiting for an earlier time: the patient owns their entry, the front desk reads
+      // it, flags priority and records an offer
+      match /waitlist/{uid} {
+        allow read: if runsDay(clinicId) || (patient() && uid == request.auth.uid);
+        allow create, delete: if patient() && uid == request.auth.uid;
+        allow update: if (patient() && uid == request.auth.uid)
+          || (runsDay(clinicId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['priority', 'offer']));
+      }
+
+      // messages waiting for Cloud Functions to send them; nobody edits one after the fact
+      match /outbox/{id} {
+        allow read: if runsDay(clinicId);
+        // the ClinicFlow team also writes here: the message telling the owner how the review went
+        allow create: if (canAct(clinicId) || isPlatformAdmin()) && request.resource.data.by == request.auth.uid && request.resource.data.status == 'queued';
+        allow update, delete: if false;
+      }
+
+      // the audit log: append-only, stamped with the server's time and the real author
+      // (the review decision is recorded here too)
+      match /audit/{id} {
+        allow read: if isAdmin(clinicId);
+        allow create: if (isStaff(clinicId) || isPlatformAdmin())
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.at == request.time;
+        allow update, delete: if false;
+      }
+
+      // message wording, in English and French
+      match /templates/{id} { allow read: if isStaff(clinicId); allow write: if isAdmin(clinicId); }
+    }
+
+    // the same records reached through collection-group queries
+    match /{path=**}/clinicians/{id} { allow read: if true; }
+    match /{path=**}/services/{id} { allow read: if true; }
+    match /{path=**}/blocks/{id} { allow read: if true; }
+    match /{path=**}/slots/{id} { allow read: if true; }
+    match /{path=**}/holds/{id} { allow read: if true; }
+    match /{path=**}/queue/{id} { allow read: if true; }
+    match /{path=**}/appointments/{id} { allow read: if patient() && resource.data.patientUid == request.auth.uid; }
+    // a staff member finds the clinics they work at, and the invitations sent to them
+    match /{path=**}/staff/{uid} { allow read: if staffAccount() && resource.data.uid == request.auth.uid; }
+    match /{path=**}/invites/{email} { allow read: if verifiedEmail() && resource.data.email == request.auth.token.email.lower(); }
+
+    // ---- each patient's own records
+    match /patients/{uid} {
+      allow read, write: if patient() && request.auth.uid == uid;
+      match /family/{id} { allow read, write: if patient() && request.auth.uid == uid; }
+      match /notices/{id} { allow read, create: if patient() && request.auth.uid == uid; }
+      // fees are set by the clinic; the patient's side can only mark a balance paid
+      match /history/{id} {
+        allow read: if patient() && request.auth.uid == uid;
+        allow update: if patient() && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['owing'])
+          && request.resource.data.owing == 0;
+      }
+      // waitlist offers: the front desk of a clinic this patient is waiting at sends one;
+      // the patient can only read and answer (delete) it
+      match /offers/{id} {
+        allow read, delete: if patient() && request.auth.uid == uid;
+        allow create: if runsDay(request.resource.data.clinicId)
+          && exists(/databases/$(database)/documents/clinics/$(request.resource.data.clinicId)/waitlist/$(uid));
+      }
+    }
+  }
+}
