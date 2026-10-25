@@ -31,6 +31,9 @@ String distanceText(double km) => km < 1 ? '${(km * 1000 / 10).round() * 10} m' 
 /// A visit's status mark, in the app's language.
 Widget statusMark(BuildContext context, ApptStatus s) => StatusMark(s, label: context.s.status(s));
 
+/// The test inbox, on the sample data and the emulator only.
+TestInbox? testInbox(ClinicFlowBackend b) => b is TestInbox && (b as TestInbox).isTest ? b as TestInbox : null;
+
 /// A Canadian or US number as people write it (+1 416 555 0142); anything else as given.
 String phoneText(String phone) {
   final d = phone.replaceAll(RegExp(r'\D'), '');

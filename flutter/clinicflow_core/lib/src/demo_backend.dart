@@ -32,6 +32,8 @@ class DemoBackend extends ClinicFlowBackend implements TestInbox {
   /// Simulated incoming text messages on the patient's phone (demo only).
   @override
   final ValueNotifier<String?> inbox = ValueNotifier(null);
+  @override
+  bool get isTest => true;
 
   final _clinics = <Clinic>[];
   final _clinicians = <Clinician>[];

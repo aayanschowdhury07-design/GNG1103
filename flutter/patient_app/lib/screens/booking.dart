@@ -442,7 +442,7 @@ class _BookCodeScreenState extends State<BookCodeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final s = context.s, demo = context.backend is TestInbox ? context.backend as TestInbox : null;
+    final s = context.s, demo = testInbox(context.backend);
     return ScreenFrame(
       title: s.t('verify'),
       actions: const [LangSwitch()],

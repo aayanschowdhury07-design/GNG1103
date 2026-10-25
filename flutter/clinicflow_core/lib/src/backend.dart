@@ -8,6 +8,9 @@ import 'models.dart';
 /// sending them, so the app can show an incoming-message banner and fill codes.
 abstract interface class TestInbox {
   ValueNotifier<String?> get inbox;
+
+  /// False on the real project, where texts are really sent.
+  bool get isTest;
 }
 
 /// Everything the apps ask of the server. Screens only talk to this interface.

@@ -57,6 +57,8 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
 
   @override
   final ValueNotifier<String?> inbox = ValueNotifier(null);
+  @override
+  bool get isTest => _emulatorHost != null;
 
   @override
   final ClinicClock clock;
@@ -101,7 +103,14 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
 
   Future<void> _start() async {
     // signed-out visitors still browse the directory and book: they get an anonymous session
-    if (_auth.currentUser == null) await _auth.signInAnonymously();
+    // (the directory is public, so it still loads if that sign-in is refused)
+    if (_auth.currentUser == null) {
+      try {
+        await _auth.signInAnonymously();
+      } catch (e) {
+        debugPrint('anonymous sign-in failed (is Anonymous enabled in Firebase Authentication?): $e');
+      }
+    }
     _subs
       ..add(_db.collection('clinics').snapshots().listen((q) {
         _clinics = [

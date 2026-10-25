@@ -13,6 +13,7 @@ import 'screens/home.dart';
 import 'screens/notifications.dart';
 import 'screens/profile.dart';
 import 'session.dart';
+import 'widgets.dart';
 
 /// Which data the app runs on, chosen when building or running:
 ///   (default)                          sample data on the device, no server
@@ -172,9 +173,7 @@ class _DemoFrameState extends State<_DemoFrame> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final b = context.backend;
-    if (b is TestInbox && _demo == null) {
-      _demo = (b as TestInbox)..inbox.addListener(_show);
-    }
+    _demo ??= testInbox(b)?..inbox.addListener(_show);
   }
 
   void _show() {

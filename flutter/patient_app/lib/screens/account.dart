@@ -16,7 +16,7 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   // the test backends fill in the sample patient's number
-  late final _who = TextEditingController(text: context.backend is TestInbox ? '+1 416 555 0142' : '');
+  late final _who = TextEditingController(text: testInbox(context.backend) != null ? '+1 416 555 0142' : '');
   final _code = TextEditingController();
   bool _codeSent = false, _busy = false;
   String? _error;
@@ -71,7 +71,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final s = context.s, demo = context.backend is TestInbox ? context.backend as TestInbox : null;
+    final s = context.s, demo = testInbox(context.backend);
     return ScreenFrame(
       back: false,
       title: s.t('signInTitle'),
