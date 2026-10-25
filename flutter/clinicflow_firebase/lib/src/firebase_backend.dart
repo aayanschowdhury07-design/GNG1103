@@ -76,6 +76,9 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
   var _blocks = <Block>[]; // breaks, time off: set by the clinic
   final _hours = <String, WorkHours>{}; // each clinician's working days and hours, from setup
 
+  final _firstClinics = Completer<void>(), _firstServices = Completer<void>(), _firstClinicians = Completer<void>();
+  static void _done(Completer<void> c) => c.isCompleted ? null : c.complete();
+
   /// The day the date-bound listeners (slots, holds, queue) were opened for.
   String _watchedDay = '';
   var _taken = <String>{}; // "clinic|clinician_date_minute"
@@ -104,7 +107,9 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
         _clinics = [
           for (final d in q.docs)
             Clinic(
-              // patients find clinics that finished setup, were approved by ClinicFlow and chose to be listed
+              // patients book clinics that finished setup and were approved by ClinicFlow, and
+              // find them in the directory if the clinic chose to be listed
+              bookable: d.data()['ready'] != false && d.data()['approval'] == 'approved',
               listed: d.data()['ready'] != false && d.data()['listed'] != false && d.data()['approval'] == 'approved',
               id: d.id,
               // every field goes through data(): d['missing'] throws, and one half-set-up clinic
@@ -120,6 +125,7 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
               notice: d.data()['notice'],
             ),
         ];
+        _done(_firstClinics);
         notifyListeners();
       }))
       ..add(_db.collectionGroup('clinicians').snapshots().listen((q) {
@@ -144,6 +150,7 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
               if (d.data()['days'] is List)
                 d.id: WorkHours(days: Set<String>.from(d.data()['days']), start: d.data()['start'] ?? 0, end: d.data()['end'] ?? 24 * 60),
           });
+        _done(_firstClinicians);
         notifyListeners();
       }))
       ..add(_db.collectionGroup('services').snapshots().listen((q) {
@@ -168,6 +175,7 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
                 clinicianIds: List<String>.from(d.data()['clinicianIds'] ?? const []),
               ),
           });
+        _done(_firstServices);
         notifyListeners();
       }))
       ..add(_db.collectionGroup('blocks').snapshots().listen((q) {
@@ -184,16 +192,9 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
       }))
       ..add(_auth.authStateChanges().listen(_watchPatient));
     _watchDays();
-    // screens look clinics up by id, so wait for the directory before the first frame
-    final loaded = Stopwatch()..start();
-    while (!_clinics.any((c) => c.listed) || _services.isEmpty || _clinicians.isEmpty) {
-      if (loaded.elapsed > const Duration(seconds: 15)) {
-        throw StateError(_emulatorHost != null
-            ? 'No clinic data in Firestore. Run "node flutter/tools/seed_emulator.js" with the emulators running.'
-            : 'No clinics in the directory yet. A clinic shows up once it finishes setup (staff website) and ClinicFlow approves it.');
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
+    // screens look clinics up by id, so wait for the directory's first answer before the first
+    // frame. It may well be empty (no clinic approved yet): the app says so instead of failing.
+    await Future.wait([_firstClinics.future, _firstServices.future, _firstClinicians.future]).timeout(const Duration(seconds: 15), onTimeout: () => const []);
     // holds expire on the clock, not on a database change; at midnight the days shown move on
     var live = 0;
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -356,9 +357,13 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
 
   // ---------------------------------------------------------------- directory
   @override
-  List<Clinic> get clinics => List.unmodifiable(_clinics.where((c) => c.listed));
+  List<Clinic> get clinics => List.unmodifiable(_clinics.where((c) => c.listed).map(_withHome));
   @override
-  Clinic clinic(String id) => _clinics.firstWhere((c) => c.id == id);
+  Clinic clinic(String id) => _withHome(_clinics.firstWhere((c) => c.id == id));
+
+  /// "Your clinic" is the patient's own: the one they first booked at.
+  Clinic _withHome(Clinic c) => c.withHome(c.id == _patient['homeClinic']);
+
   @override
   List<Service> services(String clinicId) =>
       _services.values.where((s) => s.clinicId == clinicId).toList()..sort((a, b) => (_serviceOrder[a.id] ?? 99).compareTo(_serviceOrder[b.id] ?? 99));
@@ -368,15 +373,6 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
   List<Clinician> clinicians(String clinicId) => _clinicians.values.where((c) => c.clinicId == clinicId).toList();
   @override
   Clinician clinician(String id) => _clinicians[id]!;
-
-  @override
-  double distanceKm(Clinic c) {
-    const lat0 = 43.6745, lng0 = -79.3905; // the patient's location in the sample data
-    double rad(double x) => x * math.pi / 180;
-    final dLat = rad(c.lat - lat0), dLng = rad(c.lng - lng0);
-    final a = math.pow(math.sin(dLat / 2), 2) + math.cos(rad(lat0)) * math.cos(rad(c.lat)) * math.pow(math.sin(dLng / 2), 2);
-    return (6371 * 2 * math.asin(math.sqrt(a)) * 10).round() / 10;
-  }
 
   /// A break or time off, or outside the clinician's working days and hours.
   bool _off(String clinicianId, String date, int minute) =>
@@ -561,6 +557,13 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
     if (outcome != BookingOutcome.booked) return BookingResult(outcome);
     _unconfirmed.remove(_e164(r.phone));
     _apptClinic[apptRef.id] = r.clinicId;
+    // a first booking for themselves fills in the new patient's profile
+    if (!r.bookedByGuardian && (profile?.name ?? '').isEmpty) {
+      await saveProfile(name: r.patientName, email: r.email).catchError((Object e) => debugPrint('profile not saved: $e'));
+    }
+    if (_patient['homeClinic'] == null) {
+      await _me.set({'homeClinic': r.clinicId}, SetOptions(merge: true)).catchError((Object e) => debugPrint('home clinic not saved: $e'));
+    }
     final cl = clinic(r.clinicId);
     await _notify('Booked${r.bookedByGuardian ? ' for ${r.patientName.split(' ').first}' : ''}: ${service(r.serviceId).short}, ${shortDate(r.date)}, ${formatTime(r.minute)} with ${clinician(r.clinicianId).short}${cl.isHome ? '' : ' at ${cl.name}'}.',
         'text and email', NoticeKind.update);
@@ -664,11 +667,27 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
 
   // ---------------------------------------------------------------- profile
   @override
+  PatientProfile? get profile => signedIn
+      ? PatientProfile(name: _patient['name'] ?? '', phone: _auth.currentUser?.phoneNumber ?? '', email: _patient['email'] ?? '')
+      : null;
+
+  @override
+  Future<void> saveProfile({required String name, required String email}) => _me.set({'name': name.trim(), 'email': email.trim()}, SetOptions(merge: true));
+
+  /// Recorded on the patient's record; answering it (by email, within 30 days) comes with Cloud Functions.
+  @override
+  Future<void> requestMyData(String kind) => _me.set({
+        'dataRequests': FieldValue.arrayUnion([
+          {'kind': kind, 'at': DateTime.now().millisecondsSinceEpoch},
+        ]),
+      }, SetOptions(merge: true));
+
+  @override
   bool get smsConsent => _patient['smsConsent'] ?? false;
   @override
   String get smsConsentChangedOn => _patient['consentDate'] ?? '';
   @override
-  Future<void> setSmsConsent(bool on) => _me.set({'smsConsent': on, 'consentDate': recordDate(today)}, SetOptions(merge: true));
+  Future<void> setSmsConsent(bool on) => _me.set({'smsConsent': on, 'consentDate': today}, SetOptions(merge: true));
 
   @override
   List<FamilyMember> family() => List.unmodifiable(_family);

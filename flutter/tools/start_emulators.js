@@ -24,5 +24,5 @@ if (!fs.existsSync(cli)) {
   console.error('Firebase CLI not found. Install it with: npm install -g firebase-tools');
   process.exit(1);
 }
-spawn(process.execPath, [cli, 'emulators:start', '--project', 'demo-clinicflow'], { cwd: path.join(__dirname, '..'), env, stdio: 'inherit' })
+spawn(process.execPath, [cli, 'emulators:start', '--only', 'auth,firestore', '--project', 'demo-clinicflow'], { cwd: path.join(__dirname, '..'), env, stdio: 'inherit' })
   .on('exit', (code) => process.exit(code ?? 0));

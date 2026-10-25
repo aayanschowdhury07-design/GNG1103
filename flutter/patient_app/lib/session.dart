@@ -1,13 +1,10 @@
 import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:flutter/material.dart';
 
-/// Who is signed in and how they like the app on this device: language, theme, text size.
-/// (Family members and text-message consent are records, so they live in the backend.)
-/// The booking in progress lives here too, so every step reads the same draft.
+/// How the patient likes the app on this device: language, theme, text size. (Who they are,
+/// their family and consent are records, so they live in the backend.) The booking in
+/// progress lives here too, so every step reads the same draft.
 class PatientSession extends ChangeNotifier {
-  final String name = 'Priya Raman';
-  final String phone = '+1 416 555 0142';
-
   String lang = 'en';
   ThemeMode themeMode = ThemeMode.light;
   bool largeText = false;
@@ -39,13 +36,20 @@ class BookingDraft extends ChangeNotifier {
 
   String clinicId = '';
 
-  /// Where booking starts: the patient's own clinic, otherwise the nearest one taking bookings.
+  /// A clinic someone can book online right now.
+  static bool canBook(ClinicFlowBackend b, Clinic c) => c.bookable && c.accepting && b.services(c.id).any((s) => s.online && s.clinicianIds.isNotEmpty);
+
+  /// Where booking starts: the patient's own clinic, otherwise the nearest one taking
+  /// bookings. Empty when no clinic is on ClinicFlow yet.
   static String defaultClinic(ClinicFlowBackend b) {
-    final home = b.clinics.where((c) => c.isHome).firstOrNull;
+    final home = b.clinics.where((c) => c.isHome && canBook(b, c)).firstOrNull;
     if (home != null) return home.id;
-    final open = b.clinics.where((c) => c.accepting).toList()..sort((x, y) => b.distanceKm(x).compareTo(b.distanceKm(y)));
-    return (open.firstOrNull ?? b.clinics.first).id;
+    final open = b.clinics.where((c) => canBook(b, c)).toList()..sort(b.byDistance);
+    return (open.firstOrNull ?? b.clinics.firstOrNull)?.id ?? '';
   }
+
+  /// The clinic and service chosen are bookable online.
+  bool get ready => clinicId.isNotEmpty && serviceId.isNotEmpty;
 
   /// Set when moving an existing visit rather than booking a new one.
   String? rescheduling;
@@ -56,7 +60,9 @@ class BookingDraft extends ChangeNotifier {
   /// The day being booked ('2026-10-23') and the held start time on it.
   String date = '';
   int? minute;
-  String who = 'Priya Raman';
+
+  /// Who the visit is for: '' is the patient themselves, otherwise a family member's name.
+  String who = '';
   String? error;
   Appointment? lastBooked;
 
@@ -70,19 +76,20 @@ class BookingDraft extends ChangeNotifier {
   /// Opens on the first day with a time left, so nobody lands on a fully booked today.
   void _firstOpenDay(ClinicFlowBackend b) => date = b.bookableDays.firstWhere((d) => hasOpening(b, d), orElse: () => b.today);
 
-  /// Starts over at [clinic] with its first online service and clinician.
+  /// Starts over at [clinic] with its first online service and clinician. A clinic with
+  /// nothing bookable online leaves the service empty; the booking screen says so.
   void start(ClinicFlowBackend b, String clinic, {String? keepWho}) {
     b.releaseHolds(owner);
     rescheduling = null;
     clinicId = clinic;
-    final svc = b.services(clinic).firstWhere((s) => s.online);
-    serviceId = svc.id;
-    clinicianId = svc.clinicianIds.first;
+    final svc = clinic.isEmpty || !b.clinic(clinic).bookable ? null : b.services(clinic).where((s) => s.online && s.clinicianIds.isNotEmpty).firstOrNull;
+    serviceId = svc?.id ?? '';
+    clinicianId = svc?.clinicianIds.first ?? '';
     heldClinicianId = null;
     minute = null;
     error = null;
     who = keepWho ?? who;
-    _firstOpenDay(b);
+    if (svc != null) _firstOpenDay(b);
     notifyListeners();
   }
 

@@ -633,7 +633,7 @@ class BookingLinkStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme, c = CfColors.of(context);
-    final url = 'https://book.clinicflow.ca/${setup.clinicId}';
+    final url = bookingLink(setup.clinicId ?? '');
     return StepFrame(
       setup: setup,
       step: 5,

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
 import 'models.dart';
@@ -31,12 +33,32 @@ abstract class ClinicFlowBackend extends ChangeNotifier {
   List<Clinician> clinicians(String clinicId);
   Clinician clinician(String id);
 
-  /// Straight-line distance from the patient, in km (one decimal).
-  double distanceKm(Clinic c);
+  // ---- where the patient is, only once they choose to share it ----
+  ({double lat, double lng})? here;
+  void setHere(double lat, double lng) {
+    here = (lat: lat, lng: lng);
+    notifyListeners();
+  }
+
+  /// Straight-line distance from the patient, in km (one decimal); null until they share their location.
+  double? distanceKm(Clinic c) {
+    final h = here;
+    if (h == null) return null;
+    double rad(double x) => x * math.pi / 180;
+    final dLat = rad(c.lat - h.lat), dLng = rad(c.lng - h.lng);
+    final a = math.pow(math.sin(dLat / 2), 2) + math.cos(rad(h.lat)) * math.cos(rad(c.lat)) * math.pow(math.sin(dLng / 2), 2);
+    return (6371 * 2 * math.asin(math.sqrt(a)) * 10).round() / 10;
+  }
+
+  /// Nearest first when the location is known, otherwise by name.
+  int byDistance(Clinic a, Clinic b) {
+    final da = distanceKm(a), db = distanceKm(b);
+    return da == null || db == null ? a.name.compareTo(b.name) : da.compareTo(db);
+  }
 
   /// The soonest time anyone can book online in the next two weeks, or null.
   ({String date, int minute})? nextOpening(String clinicId) {
-    if (!clinic(clinicId).accepting) return null;
+    if (!clinic(clinicId).accepting || !clinic(clinicId).bookable) return null;
     final ids = services(clinicId).where((s) => s.online).expand((s) => s.clinicianIds).toSet();
     for (final d in bookableDays) {
       for (final m in slotMinutes) {
@@ -99,6 +121,14 @@ abstract class ClinicFlowBackend extends ChangeNotifier {
   Future<void> signOut();
 
   // ---- the patient's profile ----
+  /// The signed-in patient, or null for a visitor who hasn't signed in.
+  PatientProfile? get profile;
+  Future<void> saveProfile({required String name, required String email});
+
+  /// Asks for a copy of everything held about the patient ('export'), or for the account
+  /// and its records to be deleted ('delete'). Recorded now, answered by email within 30 days.
+  Future<void> requestMyData(String kind);
+
   bool get smsConsent;
   String get smsConsentChangedOn;
   Future<void> setSmsConsent(bool on);

@@ -31,13 +31,22 @@ Future<void> main() async {
     'emulator' => await FirebaseBackend.startEmulators(clock: clock),
     _ => DemoBackend(),
   };
-  runApp(PatientApp(backend: backend, session: PatientSession()));
+  runApp(PatientApp(backend: backend, session: PatientSession(), linkedClinic: linkedClinic()));
+}
+
+/// A clinic's booking link opens the app at …/c/{clinicId}: straight to booking there.
+String? linkedClinic() {
+  final p = Uri.base.pathSegments;
+  return p.length >= 2 && p[0] == 'c' && p[1].isNotEmpty ? p[1] : null;
 }
 
 class PatientApp extends StatelessWidget {
-  const PatientApp({super.key, required this.backend, required this.session});
+  const PatientApp({super.key, required this.backend, required this.session, this.linkedClinic});
   final ClinicFlowBackend backend;
   final PatientSession session;
+
+  /// Opened from a clinic's booking link.
+  final String? linkedClinic;
 
   @override
   Widget build(BuildContext context) {
@@ -57,32 +66,55 @@ class PatientApp extends StatelessWidget {
             minScaleFactor: session.largeText ? 1.2 : 1,
             child: _DemoFrame(child: child!),
           ),
-          home: const Shell(),
+          home: Shell(linkedClinic: linkedClinic),
         ),
       ),
     );
   }
 }
 
-/// Home, Book, Clinics and Profile tabs.
+/// Home, Book, Clinics, Alerts and Profile tabs.
 class Shell extends StatefulWidget {
-  const Shell({super.key});
+  const Shell({super.key, this.linkedClinic});
+  final String? linkedClinic;
   @override
   State<Shell> createState() => _ShellState();
 }
 
 class _ShellState extends State<Shell> {
   int _tab = 0;
+  bool _started = false;
 
   // the Book tab is built on launch, so the booking draft needs a clinic before the first frame
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (context.draft.clinicId.isEmpty) context.draft.start(context.backend, BookingDraft.defaultClinic(context.backend), keepWho: context.session.name);
+    if (_started) return;
+    _started = true;
+    final b = context.backend, link = widget.linkedClinic;
+    // a clinic's own link books there, even when it isn't listed in the directory (and if it
+    // isn't taking bookings yet, the booking screen says so)
+    if (link != null && _known(link)) {
+      context.draft.start(b, link);
+      _tab = 1;
+    } else {
+      context.draft.start(b, BookingDraft.defaultClinic(b));
+    }
+  }
+
+  bool _known(String id) {
+    try {
+      context.backend.clinic(id);
+      return true;
+    } on StateError {
+      return false; // not a clinic on ClinicFlow (or not yet): the app opens as usual
+    }
   }
 
   void _go(int i) {
-    if (i == 1) context.draft.start(context.backend, BookingDraft.defaultClinic(context.backend), keepWho: context.session.name); // Book starts fresh
+    final d = context.draft, b = context.backend;
+    // Book starts fresh, at the clinic last chosen if it still takes bookings
+    if (i == 1) d.start(b, d.clinicId.isNotEmpty && BookingDraft.canBook(b, b.clinic(d.clinicId)) ? d.clinicId : BookingDraft.defaultClinic(b), keepWho: '');
     setState(() => _tab = i);
   }
 
@@ -90,9 +122,9 @@ class _ShellState extends State<Shell> {
   Widget build(BuildContext context) {
     return Watch(builder: (context) {
       // booking and the directory work signed out; your visits, alerts and profile need sign-in
-      final signedIn = context.backend.signedIn;
-      Widget private(Widget screen) => signedIn ? screen : SignInScreen(onBookWithout: () => _go(1));
-      final unread = context.backend.pendingOffer() != null;
+      final b = context.backend, s = context.s;
+      Widget private(Widget screen) => b.signedIn ? screen : SignInScreen(onBookWithout: () => _go(1));
+      final unread = b.pendingOffer() != null;
       return Scaffold(
         body: IndexedStack(index: _tab, children: [
           private(HomeScreen(onBook: () => _go(1), onClinics: () => _go(2))),
@@ -105,16 +137,16 @@ class _ShellState extends State<Shell> {
           selectedIndex: _tab,
           onDestinationSelected: _go,
           destinations: [
-            const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-            const NavigationDestination(icon: Icon(Icons.event_available_outlined), selectedIcon: Icon(Icons.event_available), label: 'Book'),
-            const NavigationDestination(icon: Icon(Icons.map_outlined), selectedIcon: Icon(Icons.map), label: 'Clinics'),
+            NavigationDestination(icon: const Icon(Icons.home_outlined), selectedIcon: const Icon(Icons.home), label: s.t('navHome')),
+            NavigationDestination(icon: const Icon(Icons.event_available_outlined), selectedIcon: const Icon(Icons.event_available), label: s.t('navBook')),
+            NavigationDestination(icon: const Icon(Icons.map_outlined), selectedIcon: const Icon(Icons.map), label: s.t('navClinics')),
             NavigationDestination(
               icon: Badge(isLabelVisible: unread, label: const Text('1'), child: const Icon(Icons.notifications_outlined)),
               selectedIcon: const Icon(Icons.notifications),
-              label: 'Alerts',
-              tooltip: unread ? 'Alerts, 1 new offer' : 'Alerts',
+              label: s.t('navAlerts'),
+              tooltip: unread ? s.t('alertsOffer') : s.t('navAlerts'),
             ),
-            const NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
+            NavigationDestination(icon: const Icon(Icons.person_outline), selectedIcon: const Icon(Icons.person), label: s.t('navProfile')),
           ],
         ),
       );
@@ -180,7 +212,7 @@ class _DemoFrameState extends State<_DemoFrame> {
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Messages · now · tap to dismiss', style: context.text.labelMedium?.copyWith(color: c.muted)),
+                    Text(context.s.t('msgBanner'), style: context.text.labelMedium?.copyWith(color: c.muted)),
                     const SizedBox(height: 2),
                     Text(_msg!, style: context.text.bodyMedium),
                   ]),

@@ -44,7 +44,7 @@ const slot = (clinic, clinicianId, date, minute, appointmentId) =>
 // ---- the sample day (the same data as DemoBackend in clinicflow_core)
 const SLOTS = [540, 570, 600, 630, 660, 690, 780, 810, 840, 870, 900, 930, 960, 990];
 const clinics = {
-  mg: { initials: 'MG', name: 'Maple Grove Clinic', address: '214 Elm Ave', kind: 'Physiotherapy, chiropractic', lat: 43.6807, lng: -79.3838, accepting: true, isHome: true,
+  mg: { initials: 'MG', name: 'Maple Grove Clinic', address: '214 Elm Ave', kind: 'Physiotherapy, chiropractic', lat: 43.6807, lng: -79.3838, accepting: true,
     notice: 'Parking lot B is closed this week. Street parking on Elm Ave is free for 2 hours.',
     // set up through the wizard, so the staff website opens straight onto the day
     city: 'Toronto, ON', phone: '+1 416 555 0100', brand: 'blue', languages: ['en', 'fr'], ready: true, listed: true, existing: 'fresh',
@@ -200,7 +200,7 @@ put(`clinics/mg/queue/${TODAY}_A-13`, { ticket: 'A-13', n: 13, date: TODAY, clin
 put(`clinics/mg/counters/tickets-${TODAY}`, { next: 15 });
 
 // Priya's own records
-put(`patients/${PRIYA}`, { name: 'Priya Raman', smsConsent: true, consentDate: recordDate(addDays(TODAY, -7)) });
+put(`patients/${PRIYA}`, { name: 'Priya Raman', email: 'priya.r@example.ca', homeClinic: 'mg', smsConsent: true, consentDate: addDays(TODAY, -7) });
 put(`patients/${PRIYA}/family/f1`, { name: 'Arjun Raman', relationship: 'Child', born: '2017-04-12' });
 [
   [`Booked: Physio, ${shortDate(TODAY)}, 9:00 am. Manage your visit any time from this link.`, `${recordDate(addDays(TODAY, -7))} · text and email`, 'update', null, 1],
@@ -214,7 +214,7 @@ put(`patients/${PRIYA}/family/f1`, { name: 'Arjun Raman', relationship: 'Child',
   [40, 'Chiropractic · adjustment', 'Dr. Rania Daoud', 'Maple Grove Clinic', 70, 0, 'Arjun Raman'],
   [110, 'Physiotherapy · follow-up', 'Sam Whitlock, PT', 'Lakeshore Physio', 90, 0, 'Priya Raman'],
 ].forEach(([ago, service, clinician, clinic, fee, owing, who], i) =>
-  put(`patients/${PRIYA}/history/h${i}`, { date: recordDate(addDays(TODAY, -ago)), service, clinician, clinic, fee, owing, who, order: i }));
+  put(`patients/${PRIYA}/history/h${i}`, { date: addDays(TODAY, -ago), service, clinician, clinic, fee, owing, who, order: i }));
 
 async function main() {
   const check = await fetch('http://127.0.0.1:8080/').catch(() => null);

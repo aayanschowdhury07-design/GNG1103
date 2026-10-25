@@ -26,7 +26,8 @@ if (!fs.existsSync(path.join(root, 'index.html'))) {
 http
   .createServer((req, res) => {
     let url = decodeURIComponent(req.url.split('?')[0]);
-    if (url === '/') url = '/index.html';
+    // app paths like a clinic's booking link (/c/mg) load the app, as on Firebase Hosting
+    if (url === '/' || !path.extname(url)) url = '/index.html';
     const file = path.join(root, url);
     if (!file.startsWith(root)) return res.writeHead(403).end();
     fs.readFile(file, (err, data) => {

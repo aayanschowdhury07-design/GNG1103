@@ -24,26 +24,29 @@ class _IntakeScreenState extends State<IntakeScreen> {
   }
 
   Future<void> _submit() async {
+    final s = context.s;
     await context.backend.submitIntake(widget.appointmentId, IntakeAnswers(visitType: _type, note: _note.text.trim(), contactByText: _contact));
     if (!mounted) return;
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Form received. The front desk can see it.')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.t('formReceived'))));
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = context.s;
     return ScreenFrame(
-      title: 'Reason for visit',
-      bottom: FilledButton(onPressed: _submit, child: const Text('Submit')),
+      title: s.t('reasonTitle'),
+      actions: const [LangSwitch()],
+      bottom: FilledButton(onPressed: _submit, child: Text(s.t('submit'))),
       children: [
-        Text("This form only helps the front desk plan your visit. Please don't include symptoms or medical details; your clinician will ask about those in person.",
-            style: context.text.bodySmall),
+        Text(s.t('intakeIntro'), style: context.text.bodySmall),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
           initialValue: _type,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: 'Type of visit'),
-          items: [for (final t in IntakeAnswers.visitTypes) DropdownMenuItem(value: t, child: Text(t))],
+          decoration: InputDecoration(labelText: s.t('visitType')),
+          // stored in English for the clinic; shown in the patient's language
+          items: [for (final v in IntakeAnswers.visitTypes) DropdownMenuItem(value: v, child: Text(s.visitType(v)))],
           onChanged: (v) => setState(() => _type = v!),
         ),
         const SizedBox(height: 12),
@@ -51,18 +54,14 @@ class _IntakeScreenState extends State<IntakeScreen> {
           controller: _note,
           minLines: 3,
           maxLines: 5,
-          decoration: const InputDecoration(
-            labelText: 'Anything that would make your visit easier? (optional)',
-            hintText: 'For example: a ground-floor room, an interpreter, or extra time to get settled.',
-            alignLabelWithHint: true,
-          ),
+          decoration: InputDecoration(labelText: s.t('intakeNote'), hintText: s.t('intakeHint'), alignLabelWithHint: true),
         ),
         CheckboxListTile(
           value: _contact,
           onChanged: (v) => setState(() => _contact = v!),
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
-          title: Text('The clinic can contact me about this visit by text.', style: context.text.bodySmall?.copyWith(color: context.colors.fg)),
+          title: Text(s.t('intakeContact'), style: context.text.bodySmall?.copyWith(color: context.colors.fg)),
         ),
       ],
     );

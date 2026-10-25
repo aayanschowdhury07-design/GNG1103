@@ -64,10 +64,12 @@ String longDay(String date, String today, {String lang = 'en'}) {
   return full[0].toUpperCase() + full.substring(1);
 }
 
-/// "Oct 23, 2026": for records like visit history.
-String recordDate(String date) {
-  final d = DateTime.parse(date);
-  return '${_monthsEn[d.month - 1]} ${d.day}, ${d.year}';
+/// "Oct 23, 2026" / "23 oct. 2026": for records like visit history, which store the
+/// date as 2026-10-23. Older records saved as text are shown as they are.
+String recordDate(String date, {String lang = 'en'}) {
+  final d = DateTime.tryParse(date);
+  if (d == null) return date;
+  return lang == 'fr' ? '${d.day} ${_monthsFr[d.month - 1]} ${d.year}' : '${_monthsEn[d.month - 1]} ${d.day}, ${d.year}';
 }
 
 /// The clinic's clock. Real time in the apps; sample data and tests can start it at a
@@ -136,12 +138,17 @@ class Clinic {
     this.isHome = false,
     this.notice,
     this.listed = true,
+    this.bookable = true,
   });
   final String id, initials, name, address;
 
   /// In the directory: set up, approved by ClinicFlow and opted in. A visit at a clinic
   /// that isn't (any more) still shows the clinic's details to the patient who booked it.
   final bool listed;
+
+  /// Takes online bookings: set up and approved. A clinic can be bookable through its own
+  /// link without being [listed] in the directory.
+  final bool bookable;
 
   /// The clinic's current announcement to patients, if any ("Parking lot B is closed...").
   final String? notice;
@@ -155,6 +162,10 @@ class Clinic {
 
   /// The patient's own clinic (Maple Grove in the sample data).
   final bool isHome;
+
+  Clinic withHome(bool home) => home == isHome
+      ? this
+      : Clinic(id: id, initials: initials, name: name, address: address, kind: kind, lat: lat, lng: lng, accepting: accepting, isHome: home, notice: notice, listed: listed, bookable: bookable);
 }
 
 class Clinician {
@@ -317,6 +328,41 @@ class PatientNotice {
   final String text, when;
   final NoticeKind kind;
   final NoticeAction? action;
+}
+
+/// The signed-in patient: [name] and [email] they gave, [phone] they signed in with.
+class PatientProfile {
+  const PatientProfile({this.name = '', this.phone = '', this.email = ''});
+  final String name, phone, email;
+  String get firstName => name.trim().split(' ').first;
+}
+
+/// Where patients book a clinic online: the patient web app opens straight on its booking.
+const patientAppUrl = 'https://clinicflow-9e598.web.app';
+String bookingLink(String clinicId) => '$patientAppUrl/c/$clinicId';
+
+/// A calendar file (.ics) for a visit, for "Add to my calendar".
+String calendarFile({required String id, required String date, required int minute, required int length, required String title, required String location}) {
+  String at(int m) => '${date.replaceAll('-', '')}T${(m ~/ 60).toString().padLeft(2, '0')}${(m % 60).toString().padLeft(2, '0')}00';
+  String esc(String s) => s.replaceAll(r'\', r'\\').replaceAll(',', r'\,').replaceAll(';', r'\;');
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//ClinicFlow//EN',
+    'BEGIN:VEVENT',
+    'UID:$id@clinicflow',
+    'DTSTART:${at(minute)}',
+    'DTEND:${at(minute + length)}',
+    'SUMMARY:${esc(title)}',
+    'LOCATION:${esc(location)}',
+    'BEGIN:VALARM',
+    'TRIGGER:-PT1H',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:${esc(title)}',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
 }
 
 /// Someone the patient books for: a child, a parent, a partner.

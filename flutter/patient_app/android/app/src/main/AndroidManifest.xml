@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- distances to clinics and phone check-in, only after the patient taps "Use my location" -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <application
-        android:label="clinicflow_patient"
+        android:label="ClinicFlow"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

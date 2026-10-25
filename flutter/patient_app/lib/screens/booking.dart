@@ -2,6 +2,7 @@ import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../calendar_file.dart';
 import '../scope.dart';
 import '../session.dart';
 import '../widgets.dart';
@@ -27,19 +28,28 @@ class BookServiceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Watch(builder: (context) {
       final b = context.backend, d = context.draft, s = context.s, lang = context.lang;
+      // nothing on ClinicFlow yet: say so rather than show an empty form
+      if (d.clinicId.isEmpty) {
+        return ScreenFrame(back: !embedded, title: s.t('bookTitle'), actions: const [LangSwitch()], children: [_Empty(title: s.t('noClinics'), text: s.t('noClinicsSub'))]);
+      }
       final clinic = b.clinic(d.clinicId);
-      final directory = b.clinics.where((c) => c.accepting).toList()..sort((x, y) => b.distanceKm(x).compareTo(b.distanceKm(y)));
+      // the directory, plus the clinic this booking is for if it came from its own link
+      final directory = b.clinics.where((c) => BookingDraft.canBook(b, c)).toList()..sort(b.byDistance);
+      if (!directory.any((c) => c.id == clinic.id)) directory.insert(0, clinic);
+      String km(Clinic c) => b.distanceKm(c) == null ? '' : ' · ${distanceText(b.distanceKm(c)!)}';
       return ScreenFrame(
         back: !embedded,
         title: s.t('bookTitle'),
         actions: const [LangSwitch()],
-        bottom: FilledButton(
-          onPressed: () {
-            if (d.minute == null) d.setError(null); // don't carry an old error into a new attempt
-            Navigator.of(context).push(MaterialPageRoute(settings: const RouteSettings(name: _timeRoute), builder: (_) => const BookTimeScreen()));
-          },
-          child: Text(s.t('continue')),
-        ),
+        bottom: d.ready
+            ? FilledButton(
+                onPressed: () {
+                  if (d.minute == null) d.setError(null); // don't carry an old error into a new attempt
+                  Navigator.of(context).push(MaterialPageRoute(settings: const RouteSettings(name: _timeRoute), builder: (_) => const BookTimeScreen()));
+                },
+                child: Text(s.t('continue')),
+              )
+            : null,
         children: [
           Text(s.t('bookIntro', {'name': clinic.name}), style: context.text.bodySmall),
           const SizedBox(height: 16),
@@ -54,7 +64,7 @@ class BookServiceScreen extends StatelessWidget {
                 DropdownMenuItem(
                   value: c.id,
                   child: Text(
-                    '${c.name} · ${b.distanceKm(c)} km${c.isHome ? ' · ${s.t('yourClinic')}' : ''}${b.nextOpening(c.id) == null ? ' · ${s.t('noneToday')}' : ''}',
+                    '${c.name}${km(c)}${c.isHome ? ' · ${s.t('yourClinic')}' : ''}${b.nextOpening(c.id) == null ? ' · ${s.t('noneToday')}' : ''}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -68,27 +78,47 @@ class BookServiceScreen extends StatelessWidget {
               child: Text(s.t('seeMap')),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(s.t('whoFor'), style: context.text.bodySmall),
-          UnderlineTabs<String>(
-            options: [(context.session.name, s.t('me')), for (final f in b.family()) (f.name, f.name.split(' ').first), ('+', s.t('addSomeone'))],
-            selected: d.who,
-            onSelect: (v) => v == '+' ? Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyScreen(pickForBooking: true))) : d.pickWho(v),
-          ),
-          const SizedBox(height: 20),
-          Text(s.t('step1'), style: context.text.bodySmall),
-          Container(height: 1, color: context.colors.line, margin: const EdgeInsets.only(top: 8)),
-          for (final svc in b.services(d.clinicId).where((x) => x.online))
-            ChoiceRow(
-              title: svc.nameIn(lang),
-              subtitle: '${svc.minutes} min · ${svc.whoIn(lang)}',
-              selected: d.serviceId == svc.id,
-              onTap: () => d.pickService(b, svc.id),
+          if (!d.ready)
+            _Empty(text: s.t(clinic.bookable ? 'noOnline' : 'notBookable', {'name': clinic.name}))
+          else ...[
+            const SizedBox(height: 8),
+            Text(s.t('whoFor'), style: context.text.bodySmall),
+            UnderlineTabs<String>(
+              options: [('', s.t('me')), for (final f in b.family()) (f.name, f.name.split(' ').first), ('+', s.t('addSomeone'))],
+              selected: d.who,
+              onSelect: (v) => v == '+' ? Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyScreen(pickForBooking: true))) : d.pickWho(v),
             ),
+            const SizedBox(height: 20),
+            Text(s.t('step1'), style: context.text.bodySmall),
+            Container(height: 1, color: context.colors.line, margin: const EdgeInsets.only(top: 8)),
+            for (final svc in b.services(d.clinicId).where((x) => x.online && x.clinicianIds.isNotEmpty))
+              ChoiceRow(
+                title: svc.nameIn(lang),
+                subtitle: '${svc.minutes} min${svc.whoIn(lang).isEmpty ? '' : ' · ${svc.whoIn(lang)}'}',
+                selected: d.serviceId == svc.id,
+                onTap: () => d.pickService(b, svc.id),
+              ),
+          ],
         ],
       );
     });
   }
+}
+
+/// A calm empty state: what's going on and, if there's anything to do, what.
+class _Empty extends StatelessWidget {
+  const _Empty({this.title, required this.text});
+  final String? title;
+  final String text;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (title != null) Text(title!, style: context.text.titleLarge),
+          if (title != null) const SizedBox(height: 6),
+          Text(text, style: context.text.bodyMedium?.copyWith(color: context.colors.muted)),
+        ]),
+      );
 }
 
 /// Step 2: clinician, day and time. Choosing a time holds it for 5 minutes.
@@ -216,7 +246,7 @@ class _DayStrip extends StatelessWidget {
           return Semantics(
             button: true,
             selected: on,
-            label: '${longDay(d, today, lang: lang)}${free ? '' : ', ${working(d) ? 'full' : context.s.t('closed')}'}',
+            label: '${longDay(d, today, lang: lang)}${free ? '' : ', ${context.s.t(working(d) ? 'full' : 'closed')}'}',
             excludeSemantics: true,
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
@@ -261,6 +291,7 @@ class _SlotButton extends StatelessWidget {
 }
 
 /// Step 3: name, phone and consent. Text reminders and the policy both start unticked.
+/// A signed-in patient booking for themselves starts with their own details filled in.
 class BookDetailsScreen extends StatefulWidget {
   const BookDetailsScreen({super.key});
   @override
@@ -268,9 +299,11 @@ class BookDetailsScreen extends StatefulWidget {
 }
 
 class _BookDetailsScreenState extends State<BookDetailsScreen> {
-  late final _name = TextEditingController(text: context.draft.who);
-  late final _phone = TextEditingController(text: context.session.phone);
-  final _email = TextEditingController(text: 'priya.r@example.ca');
+  late final _me = context.backend.profile;
+  late final _forMe = context.draft.who.isEmpty;
+  late final _name = TextEditingController(text: _forMe ? (_me?.name ?? '') : context.draft.who);
+  late final _phone = TextEditingController(text: _me?.phone ?? '');
+  late final _email = TextEditingController(text: _me?.email ?? '');
   bool _sms = false, _policy = false, _sending = false;
   String? _error;
 
@@ -299,12 +332,14 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       await b.sendVerificationCode(_phone.text);
       if (!mounted) return;
       setState(() => _error = null);
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => BookCodeScreen(name: _name.text.trim(), phone: _phone.text.trim(), smsConsent: _sms)));
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => BookCodeScreen(name: _name.text.trim(), phone: _phone.text.trim(), email: _email.text.trim(), forSomeoneElse: !_forMe, smsConsent: _sms),
+      ));
     } on RateLimitException {
       setState(() => _error = s.t('errLimit'));
     } catch (e) {
       debugPrint('sendVerificationCode failed: $e');
-      if (mounted) setState(() => _error = "We couldn't send a code just now. Check your connection and try again.");
+      if (mounted) setState(() => _error = s.t('errSend'));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -347,9 +382,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
 /// Step 4: the 6-digit code. Verifying the phone confirms the booking.
 class BookCodeScreen extends StatefulWidget {
-  const BookCodeScreen({super.key, required this.name, required this.phone, required this.smsConsent});
-  final String name, phone;
-  final bool smsConsent;
+  const BookCodeScreen({super.key, required this.name, required this.phone, required this.email, required this.forSomeoneElse, required this.smsConsent});
+  final String name, phone, email;
+  final bool forSomeoneElse, smsConsent;
   @override
   State<BookCodeScreen> createState() => _BookCodeScreenState();
 }
@@ -386,8 +421,9 @@ class _BookCodeScreenState extends State<BookCodeScreen> {
       minute: d.minute!,
       patientName: widget.name,
       phone: widget.phone,
+      email: widget.email,
       owner: BookingDraft.owner,
-      bookedByGuardian: widget.name != context.session.name,
+      bookedByGuardian: widget.forSomeoneElse,
     ));
     if (!mounted) return;
     switch (result.outcome) {
@@ -431,13 +467,15 @@ class _BookCodeScreenState extends State<BookCodeScreen> {
         ErrorLine(_error),
         const SizedBox(height: 8),
         HoldBar(onExpired: () => _backToTimes(context)),
-        // the phone's own one-time-code suggestion, simulated from the demo inbox
+        // the phone's own one-time-code suggestion, simulated from the test inbox
         if (demo != null)
           ValueListenableBuilder<String?>(
             valueListenable: demo.inbox,
             builder: (context, msg, _) {
               final code = RegExp(r'\d{6}').firstMatch(msg ?? '')?.group(0);
-              return code == null ? const SizedBox.shrink() : Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => _code.text = code, icon: const Icon(Icons.sms_outlined, size: 18), label: Text('From Messages: $code')));
+              return code == null
+                  ? const SizedBox.shrink()
+                  : Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => _code.text = code, icon: const Icon(Icons.sms_outlined, size: 18), label: Text(s.t('fromMessages', {'code': code}))));
             },
           ),
         Align(
@@ -463,6 +501,20 @@ class _BookCodeScreenState extends State<BookCodeScreen> {
 class BookedScreen extends StatelessWidget {
   const BookedScreen({super.key});
 
+  void _addToCalendar(BuildContext context, Appointment a) {
+    final b = context.backend, s = context.s, svc = b.service(a.serviceId), cl = b.clinic(a.clinicId);
+    final ics = calendarFile(
+      id: a.id,
+      date: a.date,
+      minute: a.minute,
+      length: svc.minutes,
+      title: '${svc.nameIn(context.lang)} · ${b.clinician(a.clinicianId).name}',
+      location: '${cl.name}, ${cl.address}',
+    );
+    final saved = saveCalendarFile('clinicflow-${a.date}.ics', ics);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.t(saved ? 'calendarAdded' : 'calendarPhone'))));
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.s, a = context.draft.lastBooked, c = context.colors;
@@ -476,12 +528,11 @@ class BookedScreen extends StatelessWidget {
         const SizedBox(height: 12),
         Text(s.t('bookedSub'), style: context.text.bodySmall, textAlign: TextAlign.center),
         if (a != null)
-          Section(child: BookingSummary(serviceId: a.serviceId, clinicianId: a.clinicianId, date: a.date, minute: a.minute, clinicId: a.clinicId, who: a.patientName)),
+          Section(child: BookingSummary(serviceId: a.serviceId, clinicianId: a.clinicianId, date: a.date, minute: a.minute, clinicId: a.clinicId, who: a.bookedByGuardian ? a.patientName : '')),
         Section(
           title: s.t('next'),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // the reason-for-visit form belongs to the patient's own clinic; others send their own
-            if (a != null && context.backend.clinic(a.clinicId).isHome && !a.formsDone)
+            if (a != null && !a.formsDone)
               Row(children: [
                 Expanded(child: Text(s.t('formNow'), style: context.text.bodyMedium)),
                 TextButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => IntakeScreen(appointmentId: a.id))), child: Text(s.t('fill'))),
@@ -490,10 +541,7 @@ class BookedScreen extends StatelessWidget {
           ]),
         ),
         const SizedBox(height: 8),
-        OutlinedButton(
-          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.t('calendarAdded')))),
-          child: Text(s.t('calendar')),
-        ),
+        if (a != null) OutlinedButton(onPressed: () => _addToCalendar(context, a), child: Text(s.t('calendar'))),
       ],
     );
   }

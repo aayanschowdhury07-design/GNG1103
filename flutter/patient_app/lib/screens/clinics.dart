@@ -25,9 +25,7 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
   final _search = TextEditingController();
   _Filter _filter = _Filter.accepting;
   String? _selected;
-
-  // the patient's location in the sample data
-  static const _me = LatLng(43.6745, -79.3905);
+  bool _locating = false, _locationOff = false;
 
   @override
   void dispose() {
@@ -50,69 +48,106 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
     }
   }
 
-  void _waitlist(Clinic c) => ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Added to ${c.name}'s waitlist. They'll text you if a time opens.")),
-      );
+  Future<void> _locate() async {
+    setState(() => _locating = true);
+    final ok = await shareLocation(context);
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      _locationOff = !ok;
+    });
+    final here = context.backend.here;
+    if (ok && here != null) _map.move(LatLng(here.lat, here.lng), 13);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Watch(builder: (context) {
-      final b = context.backend, c = context.colors;
-      final term = _search.text.trim().toLowerCase().replaceAll(RegExp(r'therapy$'), '');
+      final b = context.backend, c = context.colors, s = context.s, lang = context.lang, here = b.here;
+      if (b.clinics.isEmpty) {
+        return ScreenFrame(back: widget.standalone, title: s.t('clinicsTitle'), children: [
+          const SizedBox(height: 24),
+          Text(s.t('noClinics'), style: context.text.titleMedium),
+          const SizedBox(height: 4),
+          Text(s.t('noClinicsSub'), style: context.text.bodySmall),
+        ]);
+      }
+      final term = _search.text.trim().toLowerCase().replaceAll(RegExp(r'(therapy|thérapie)$'), '');
       final list = b.clinics
           .where((x) => term.isEmpty || '${x.name} ${x.kind}'.toLowerCase().contains(term))
           .where((x) => switch (_filter) {
-                _Filter.accepting => x.accepting,
+                _Filter.accepting => x.accepting && x.bookable,
                 _Filter.today => b.nextOpening(x.id)?.date == b.today,
                 _Filter.all => true,
               })
           .toList()
-        ..sort((x, y) => b.distanceKm(x).compareTo(b.distanceKm(y)));
+        ..sort(b.byDistance);
       final selected = list.where((x) => x.id == _selected).firstOrNull;
+      // without the patient's location, the map opens over the middle of the clinics
+      final all = b.clinics;
+      final centre = here != null
+          ? LatLng(here.lat, here.lng)
+          : LatLng(all.map((x) => x.lat).reduce((a, z) => a + z) / all.length, all.map((x) => x.lng).reduce((a, z) => a + z) / all.length);
 
-      String nextText(Clinic x) {
-        if (!x.accepting) return 'Waitlist only';
-        final n = b.nextOpening(x.id);
-        return n == null ? 'No openings in the next 2 weeks' : 'Next opening ${dayLabel(n.date, b.today, midSentence: true)} ${formatTime(n.minute)}';
+      String details(Clinic x) {
+        final km = b.distanceKm(x);
+        return [if (km != null) distanceText(km), x.kind].join(' · ');
       }
 
-      Widget action(Clinic x, {bool primary = false}) {
-        final open = x.accepting && b.nextOpening(x.id) != null;
-        if (!open) return TextButton(onPressed: () => _waitlist(x), child: const Text('Join waitlist'));
+      String nextText(Clinic x) {
+        if (!x.accepting || !x.bookable) return s.t('waitOnly');
+        final n = b.nextOpening(x.id);
+        return n == null ? s.t('noneSoon') : s.t('nextOpening', {'when': '${dayLabel(n.date, b.today, lang: lang, midSentence: true)} ${formatTime(n.minute, lang: lang)}'});
+      }
+
+      // clinics that aren't taking online bookings say why instead of showing a button
+      Widget? action(Clinic x, {bool primary = false}) {
+        if (b.nextOpening(x.id) == null) return null;
         return primary
-            ? FilledButton(onPressed: () => _book(x), child: const Text('Book'))
-            : TextButton(onPressed: () => _book(x), child: Semantics(label: 'Book at ${x.name}', child: const Text('Book')));
+            ? FilledButton(onPressed: () => _book(x), child: Text(s.t('book')))
+            : TextButton(onPressed: () => _book(x), child: Semantics(label: s.t('bookAt', {'name': x.name}), child: Text(s.t('book'))));
       }
 
       return ScreenFrame(
         back: widget.standalone,
-        title: 'Clinics near you',
+        title: s.t('clinicsTitle'),
         children: [
           TextField(
             controller: _search,
-            decoration: const InputDecoration(labelText: 'Service or clinic', hintText: 'e.g. physiotherapy', prefixIcon: Icon(Icons.search)),
+            decoration: InputDecoration(labelText: s.t('search'), hintText: s.t('searchHint'), prefixIcon: const Icon(Icons.search)),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 8),
           UnderlineTabs<_Filter>(
-            label: 'Filter clinics',
-            options: const [(_Filter.accepting, 'Accepting patients'), (_Filter.today, 'Openings today'), (_Filter.all, 'All')],
+            label: s.t('filterLabel'),
+            options: [(_Filter.accepting, s.t('fAccepting')), (_Filter.today, s.t('fToday')), (_Filter.all, s.t('fAll'))],
             selected: _filter,
             onSelect: (f) => setState(() => _filter = f),
           ),
+          if (here == null) ...[
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: Text(s.t(_locationOff ? 'locationOff' : 'shareLocation'), style: context.text.bodySmall)),
+              TextButton.icon(
+                onPressed: _locating ? null : _locate,
+                icon: const Icon(Icons.my_location, size: 18),
+                label: Text(s.t(_locating ? 'locating' : 'useLocation')),
+              ),
+            ]),
+          ],
           const SizedBox(height: 12),
           Semantics(
-            label: 'Map of nearby clinics. The same clinics are listed below.',
+            label: s.t('mapLabel'),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: SizedBox(
                 height: 240,
                 child: FlutterMap(
                   mapController: _map,
-                  options: const MapOptions(
-                    initialCenter: LatLng(43.665, -79.389),
+                  options: MapOptions(
+                    initialCenter: centre,
                     initialZoom: 12,
-                    interactionOptions: InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+                    interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
                   ),
                   children: [
                     TileLayer(
@@ -122,7 +157,7 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
                       tileBuilder: Theme.of(context).brightness == Brightness.dark ? darkModeTileBuilder : _mutedTile,
                     ),
                     MarkerLayer(markers: [
-                      Marker(point: _me, width: 22, height: 22, child: _MeDot(color: c.stArrived, ring: c.surface)),
+                      if (here != null) Marker(point: LatLng(here.lat, here.lng), width: 22, height: 22, child: _MeDot(color: c.stArrived, ring: c.surface, label: s.t('youAreHere'))),
                       for (final x in list)
                         Marker(
                           point: LatLng(x.lat, x.lng),
@@ -139,7 +174,7 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
           ),
           const SizedBox(height: 12),
           if (selected == null)
-            Text('Tap a pin to see that clinic’s next opening.', style: context.text.bodySmall)
+            Text(s.t('tapPin'), style: context.text.bodySmall)
           else
             Semantics(
               liveRegion: true,
@@ -147,16 +182,16 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(selected.name, style: context.text.titleMedium),
-                    Text('${selected.address} · ${b.distanceKm(selected)} km · ${selected.kind}', style: context.text.bodySmall),
+                    Text('${selected.address} · ${details(selected)}', style: context.text.bodySmall),
                     Text(nextText(selected), style: context.text.bodySmall?.copyWith(color: b.nextOpening(selected.id) != null ? c.good : c.muted)),
                   ]),
                 ),
-                action(selected, primary: true),
+                ?action(selected, primary: true),
               ]),
             ),
           Section(
             child: Column(children: [
-              if (list.isEmpty) Padding(padding: const EdgeInsets.all(12), child: Text('No clinics match. Try "physio" or switch the filter to All.', style: context.text.bodySmall)),
+              if (list.isEmpty) Padding(padding: const EdgeInsets.all(12), child: Text(s.t('noMatch'), style: context.text.bodySmall)),
               for (final x in list)
                 Container(
                   decoration: BoxDecoration(border: Border(bottom: BorderSide(color: x.id == _selected ? c.accent : c.line, width: x.id == _selected ? 2 : 1))),
@@ -169,21 +204,21 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text.rich(TextSpan(children: [
                               TextSpan(text: x.name, style: TextStyle(fontWeight: FontWeight.w500, color: x.id == _selected ? c.accent : c.fg)),
-                              if (x.isHome) TextSpan(text: '  Your clinic', style: context.text.labelMedium?.copyWith(color: c.accent)),
+                              if (x.isHome) TextSpan(text: '  ${s.t('yourClinicTag')}', style: context.text.labelMedium?.copyWith(color: c.accent)),
                             ])),
-                            Text('${b.distanceKm(x)} km · ${x.kind}', style: context.text.bodySmall),
+                            Text(details(x), style: context.text.bodySmall),
                             Text(nextText(x), style: context.text.bodySmall?.copyWith(color: b.nextOpening(x.id) != null ? c.good : c.muted)),
                           ]),
                         ),
                       ),
                     ),
-                    action(x),
+                    ?action(x),
                   ]),
                 ),
             ]),
           ),
           const SizedBox(height: 12),
-          Text('Clinics opt in to the directory. Only availability is shared, never the reason for your visit.', style: context.text.bodySmall),
+          Text(s.t('optIn'), style: context.text.bodySmall),
         ],
       );
     });
@@ -237,11 +272,12 @@ class _Pin extends StatelessWidget {
 }
 
 class _MeDot extends StatelessWidget {
-  const _MeDot({required this.color, required this.ring});
+  const _MeDot({required this.color, required this.ring, required this.label});
   final Color color, ring;
+  final String label;
   @override
   Widget build(BuildContext context) => Semantics(
-        label: 'You are here',
+        label: label,
         child: Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,

@@ -147,7 +147,7 @@ void main() {
     await tester.pumpAndSettle();
     Navigator.of(tester.element(find.byType(Scaffold).last)).popUntil((r) => r.isFirst);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('A time opened up: today at 10:30 am'));
+    await tester.tap(find.text('A time opened up: today, 10:30 am'));
     await tester.pumpAndSettle();
     expect(find.text('An earlier time opened'), findsNothing); // 10:30 is later than 9:00
     await tester.tap(find.text('Take this time'));
@@ -187,6 +187,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(backend.family().map((f) => f.name), contains('Leela Raman'));
     expect(find.text('Leela'), findsOneWidget); // now a choice under "Who is this visit for?"
+    await close(tester, backend);
+  });
+
+  testWidgets('the patient edits their name and email on Profile', (tester) async {
+    final backend = await openApp(tester);
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Priya Raman'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Priya R. Raman');
+    await tester.enterText(find.byType(TextField).last, 'priya@example.org');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect((backend.profile!.name, backend.profile!.email), ('Priya R. Raman', 'priya@example.org'));
+    expect(find.text('Priya R. Raman'), findsOneWidget);
+    await close(tester, backend);
+  });
+
+  testWidgets('switching to French translates the screens', (tester) async {
+    final backend = await openApp(tester);
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('FR'));
+    await tester.pumpAndSettle();
+    for (final word in ['Accueil', 'Réserver', 'Profil', 'Se déconnecter']) {
+      expect(find.text(word), findsWidgets, reason: word);
+    }
+    expect(find.text('Sign out'), findsNothing);
     await close(tester, backend);
   });
 }

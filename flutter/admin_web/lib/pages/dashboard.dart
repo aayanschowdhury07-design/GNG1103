@@ -8,7 +8,7 @@ import '../shell.dart';
 import '../ui.dart';
 import '../visit.dart';
 
-String bookingUrl(ClinicSetup s) => 'https://book.clinicflow.ca/${s.clinicId}';
+String bookingUrl(ClinicSetup s) => bookingLink(s.clinicId ?? '');
 
 /// Today at a glance: how full the day is, who's waiting, and what needs someone's attention.
 class DashboardPage extends StatelessWidget {

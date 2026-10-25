@@ -147,8 +147,11 @@ ThemeData clinicFlowTheme(Brightness brightness) {
 
 /// A visit status: coloured text with a dot. Outlined dot = not here yet, filled = arrived.
 class StatusMark extends StatelessWidget {
-  const StatusMark(this.status, {super.key});
+  const StatusMark(this.status, {super.key, this.label});
   final ApptStatus status;
+
+  /// The status in the reader's language; English when not given.
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +167,7 @@ class StatusMark extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 6),
-      Text(status.label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color)),
+      Text(label ?? status.label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color)),
     ]);
   }
 }

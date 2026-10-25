@@ -15,7 +15,7 @@ class NotificationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Watch(builder: (context) {
-      final b = context.backend, c = context.colors, next = nextHomeVisit(b);
+      final b = context.backend, c = context.colors, s = context.s, next = nextVisit(b);
       Color kindColor(NoticeKind k) => switch (k) {
             NoticeKind.todo => c.warn,
             NoticeKind.offer => c.good,
@@ -23,20 +23,22 @@ class NotificationsScreen extends StatelessWidget {
             _ => c.muted,
           };
       List<Widget> actions(PatientNotice n) {
-        void open(Widget s) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => s));
+        void open(Widget screen) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
         return switch (n.action) {
-          NoticeAction.confirm when next != null && next.status == ApptStatus.booked => [FilledButton(onPressed: () => b.confirmVisit(next.id), child: const Text('Confirm'))],
-          NoticeAction.intake when next != null && !next.formsDone => [TextButton(onPressed: () => open(IntakeScreen(appointmentId: next.id)), child: const Text('Fill in the form'))],
-          NoticeAction.offer when b.pendingOffer() != null => [FilledButton(onPressed: () => open(const OfferScreen()), child: const Text('See the offer'))],
+          NoticeAction.confirm when next != null && next.status == ApptStatus.booked => [FilledButton(onPressed: () => b.confirmVisit(next.id), child: Text(s.t('confirm')))],
+          NoticeAction.intake when next != null && !next.formsDone => [TextButton(onPressed: () => open(IntakeScreen(appointmentId: next.id)), child: Text(s.t('fillForm')))],
+          NoticeAction.offer when b.pendingOffer() != null => [FilledButton(onPressed: () => open(const OfferScreen()), child: Text(s.t('seeOffer')))],
           _ => const [],
         };
       }
 
+      final notices = b.notifications();
       return ScreenFrame(
         back: false,
-        title: 'Notifications',
+        title: s.t('notifTitle'),
         children: [
-          for (final n in b.notifications())
+          if (notices.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Text(s.t('noNotifs'), style: context.text.bodyMedium?.copyWith(color: c.muted))),
+          for (final n in notices)
             Container(
               decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.line))),
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -44,7 +46,7 @@ class NotificationsScreen extends StatelessWidget {
                 Text(n.text, style: context.text.bodyMedium),
                 const SizedBox(height: 2),
                 Text.rich(TextSpan(style: context.text.bodySmall, children: [
-                  TextSpan(text: n.kind.label, style: TextStyle(color: kindColor(n.kind), fontWeight: FontWeight.w600)),
+                  TextSpan(text: s.kind(n.kind), style: TextStyle(color: kindColor(n.kind), fontWeight: FontWeight.w600)),
                   TextSpan(text: ' · ${n.when}'),
                 ])),
                 if (actions(n).isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Wrap(spacing: 8, children: actions(n))),

@@ -2,9 +2,44 @@ import 'dart:async';
 
 import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'scope.dart';
 import 'session.dart';
+
+/// Asks for the phone's location (the system asks the patient the first time) and hands it to
+/// the backend for distances and check-in. False if location is off or refused.
+Future<bool> shareLocation(BuildContext context) async {
+  final b = context.backend;
+  try {
+    if (!await Geolocator.isLocationServiceEnabled()) return false;
+    var allowed = await Geolocator.checkPermission();
+    if (allowed == LocationPermission.denied) allowed = await Geolocator.requestPermission();
+    if (allowed == LocationPermission.denied || allowed == LocationPermission.deniedForever) return false;
+    final p = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 15)));
+    b.setHere(p.latitude, p.longitude);
+    return true;
+  } catch (e) {
+    debugPrint('location: $e');
+    return false;
+  }
+}
+
+/// "350 m" under a kilometre, "2.4 km" above.
+String distanceText(double km) => km < 1 ? '${(km * 1000 / 10).round() * 10} m' : '${km.toStringAsFixed(1)} km';
+
+/// A visit's status mark, in the app's language.
+Widget statusMark(BuildContext context, ApptStatus s) => StatusMark(s, label: context.s.status(s));
+
+/// A Canadian or US number as people write it (+1 416 555 0142); anything else as given.
+String phoneText(String phone) {
+  final d = phone.replaceAll(RegExp(r'\D'), '');
+  final n = d.length == 11 && d.startsWith('1') ? d.substring(1) : d;
+  return n.length == 10 ? '+1 ${n.substring(0, 3)} ${n.substring(3, 6)} ${n.substring(6)}' : phone;
+}
+
+/// The name to use for the patient themselves: their profile name, or nothing for a visitor.
+String myName(BuildContext context) => context.backend.profile?.name ?? '';
 
 /// A section: a hairline rule above and space around. No boxed cards.
 class Section extends StatelessWidget {
@@ -250,8 +285,10 @@ class BookingSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final b = context.backend, cl = b.clinic(clinicId);
+    // '' is the patient themselves
+    final forWhom = who.isNotEmpty ? who : myName(context);
     final lines = [
-      context.s.t('forWho', {'name': who}),
+      forWhom.isEmpty ? context.s.t('forYou') : context.s.t('forWho', {'name': forWhom}),
       b.clinician(clinicianId).name,
       '${longDay(date, b.today, lang: context.lang)}${minute == null ? '' : ' · ${formatTime(minute!, lang: context.lang)}'}',
       '${cl.name}, ${cl.address}',

@@ -15,6 +15,7 @@ class DemoBackend extends ClinicFlowBackend implements TestInbox {
       : clock = clock ?? ClinicClock.sampleMorning(),
         _random = random ?? math.Random() {
     _day0 = this.clock.today;
+    here = (lat: 43.6745, lng: -79.3905);
     _seed();
     // expire holds as they run out, the way the server would
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _expireHolds());
@@ -61,7 +62,8 @@ class DemoBackend extends ClinicFlowBackend implements TestInbox {
   /// "today at 3:30 pm", "tomorrow at 9:00 am", "Thu Oct 29 at 9:00 am".
   String _when(String date, int minute) => '${dayLabel(date, today, midSentence: true)} at ${formatTime(minute)}';
 
-  static const _me = (lat: 43.6745, lng: -79.3905);
+  // the sample patient, sharing her location near Yonge and St Clair
+  var _profile = const PatientProfile(name: 'Priya Raman', phone: '+1 416 555 0142', email: 'priya.r@example.ca');
 
   @override
   void dispose() {
@@ -86,14 +88,6 @@ class DemoBackend extends ClinicFlowBackend implements TestInbox {
   List<Clinician> clinicians(String clinicId) => _clinicians.where((c) => c.clinicId == clinicId).toList();
   @override
   Clinician clinician(String id) => _clinicians.firstWhere((c) => c.id == id);
-
-  @override
-  double distanceKm(Clinic c) {
-    double rad(double x) => x * math.pi / 180;
-    final dLat = rad(c.lat - _me.lat), dLng = rad(c.lng - _me.lng);
-    final a = math.pow(math.sin(dLat / 2), 2) + math.cos(rad(_me.lat)) * math.cos(rad(c.lat)) * math.pow(math.sin(dLng / 2), 2);
-    return (6371 * 2 * math.asin(math.sqrt(a)) * 10).round() / 10;
-  }
 
   @override
   bool workingOn(String clinicianId, String date) => slotMinutes.any((m) => _offAt(clinicianId, date, m) == null);
@@ -259,6 +253,22 @@ class DemoBackend extends ClinicFlowBackend implements TestInbox {
 
   // ---------------------------------------------------------------- profile
   @override
+  PatientProfile? get profile => _signedIn ? _profile : null;
+
+  @override
+  Future<void> saveProfile({required String name, required String email}) async {
+    _profile = PatientProfile(name: name.trim(), phone: _profile.phone, email: email.trim());
+    notifyListeners();
+  }
+
+  @override
+  Future<void> requestMyData(String kind) async {
+    _notify(kind == 'delete' ? 'We received your request to delete your account. We’ll confirm by email within 30 days.' : 'We received your request for a copy of your data. It arrives by email within 30 days.',
+        'email', NoticeKind.update);
+    notifyListeners();
+  }
+
+  @override
   bool get smsConsent => _smsConsent;
   @override
   String get smsConsentChangedOn => _consentDate;
@@ -266,7 +276,7 @@ class DemoBackend extends ClinicFlowBackend implements TestInbox {
   @override
   Future<void> setSmsConsent(bool on) async {
     _smsConsent = on;
-    _consentDate = recordDate(today);
+    _consentDate = today;
     notifyListeners();
   }
 
@@ -396,13 +406,13 @@ class DemoBackend extends ClinicFlowBackend implements TestInbox {
   // ---------------------------------------------------------------- sample data
   void _seed() {
     final day0 = _day0;
-    String ago(int n) => recordDate(addDays(day0, -n));
+    String ago(int n) => addDays(day0, -n);
     _consentDate = ago(7);
     _notices.addAll([
       const PatientNotice(text: 'Reminder: Physio today 9:00 am with Dr. Osei. Tap to confirm.', when: 'Yesterday 9:00 am · push, then text', kind: NoticeKind.reminder, action: NoticeAction.confirm),
       const PatientNotice(text: 'Please complete your reason-for-visit form before your visit.', when: 'Yesterday 9:01 am · text', kind: NoticeKind.todo, action: NoticeAction.intake),
       PatientNotice(text: 'Reminder: Physio on ${shortDate(day0)} at 9:00 am with Dr. Osei.', when: '2 days ago 9:00 am · push', kind: NoticeKind.reminder),
-      PatientNotice(text: 'Booked: Physio, ${shortDate(day0)}, 9:00 am. Manage your visit any time from this link.', when: '${ago(7)} · text and email', kind: NoticeKind.update),
+      PatientNotice(text: 'Booked: Physio, ${shortDate(day0)}, 9:00 am. Manage your visit any time from this link.', when: '${recordDate(ago(7))} · text and email', kind: NoticeKind.update),
     ]);
     _history.addAll([
       PastVisit(date: ago(14), service: 'Physiotherapy · follow-up', clinician: 'Dr. Kwame Osei', clinic: 'Maple Grove Clinic', fee: 95, owing: 0, who: 'Priya Raman'),
