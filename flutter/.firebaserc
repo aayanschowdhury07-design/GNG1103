@@ -1,5 +1,13 @@
 {
   "projects": {
-    "default": "demo-clinicflow"
+    "default": "demo-clinicflow",
+    "live": "clinicflow-9e598"
+  },
+  "targets": {
+    "clinicflow-9e598": {
+      "hosting": {
+        "staff": ["clinicflow-staff"]
+      }
+    }
   }
 }

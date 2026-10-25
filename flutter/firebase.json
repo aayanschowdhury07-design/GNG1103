@@ -3,6 +3,28 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "hosting": [
+    {
+      "target": "staff",
+      "public": "admin_web/build/web_live",
+      "ignore": ["firebase.json", "**/.*"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }],
+      "headers": [
+        {
+          "source": "/",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
+        {
+          "source": "**/!(*.*)",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
+        {
+          "source": "**/*.@(html|js|json|wasm)",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        }
+      ]
+    }
+  ],
   "emulators": {
     "singleProjectMode": true,
     "auth": { "port": 9099 },
