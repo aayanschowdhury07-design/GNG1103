@@ -3,6 +3,7 @@ import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
 
 import '../csv.dart';
+import '../l10n.dart';
 import '../ui.dart';
 import '../visit.dart';
 
@@ -39,8 +40,8 @@ class ReportsPage extends StatelessWidget {
     final serviceTop = byService.values.fold<int>(1, (m, n) => n > m ? n : m);
 
     return PageFrame(
-      eyebrow: 'From your clinic’s records${desk.me.role == 'clinician' ? ' · your patients' : ''}',
-      title: 'Reports',
+      eyebrow: desk.me.role == 'clinician' ? tr('Your patients only') : null,
+      title: tr('Reports'),
       actions: [
         OutlinedButton(
           style: smallButton,
@@ -52,20 +53,19 @@ class ReportsPage extends StatelessWidget {
             ]);
             desk.record('export.csv', 'reports', '${clins.length * week.length} rows');
           },
-          child: const Text('Export CSV'),
+          child: Text(tr('Export CSV')),
         ),
       ],
       children: [
         KpiRow(children: [
-          Kpi(label: 'No-show rate', value: pct(noShow, kept + noShow), sub: '$noShow missed of ${kept + noShow} visits due', tone: noShow == 0 ? Tone.good : null),
-          Kpi(label: 'Cancellation rate', value: pct(cancelled, all.length), sub: '$cancelled of ${all.length} bookings'),
-          Kpi(label: 'Average wait after check-in', value: avgWait == null ? '—' : '$avgWait min', sub: waits.isEmpty ? 'no visits called in yet' : 'over ${waits.length} visits'),
-          Kpi(label: 'Freed times refilled, today', value: freed.isEmpty ? '—' : pct(freed.where((f) => f.refilledBy != null).length, freed.length), sub: '${freed.where((f) => f.refilledBy != null).length} of ${freed.length}'),
+          Kpi(label: tr('No-show rate'), value: pct(noShow, kept + noShow), sub: tr('{missed} missed of {due} visits due', {'missed': noShow, 'due': kept + noShow}), tone: noShow == 0 ? Tone.good : null),
+          Kpi(label: tr('Cancellation rate'), value: pct(cancelled, all.length), sub: tr('{cancelled} of {total} bookings', {'cancelled': cancelled, 'total': all.length})),
+          Kpi(label: tr('Average wait after check-in'), value: avgWait == null ? '—' : tr('{n} min', {'n': avgWait}), sub: waits.isEmpty ? tr('no visits called in yet') : trn(waits.length, 'over 1 visit', 'over {n} visits')),
+          Kpi(label: tr('Freed times refilled, today'), value: freed.isEmpty ? '—' : pct(freed.where((f) => f.refilledBy != null).length, freed.length), sub: tr('{done} of {total}', {'done': freed.where((f) => f.refilledBy != null).length, 'total': freed.length})),
         ]),
         Columns(children: [
           Panel(
-            title: 'Volume by day, this week',
-            note: 'Booked and completed visits. Today updates live.',
+            title: tr('Volume by day, this week'),
             child: SizedBox(
               height: 180,
               child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -81,7 +81,7 @@ class ReportsPage extends StatelessWidget {
                           decoration: BoxDecoration(color: day == today ? c.accent : c.accentSoft, borderRadius: const BorderRadius.vertical(top: Radius.circular(4))),
                         ),
                         const SizedBox(height: 6),
-                        Text(shortDate(day).split(' ').first + (day == today ? '\ntoday' : '\n'), textAlign: TextAlign.center, style: t.bodySmall),
+                        Text(shortDate(day, lang: lang).split(' ').first + (day == today ? '\n${tr('today')}' : '\n'), textAlign: TextAlign.center, style: t.bodySmall),
                       ]),
                     ),
                   ),
@@ -89,24 +89,22 @@ class ReportsPage extends StatelessWidget {
             ),
           ),
           Panel(
-            title: 'Utilization by clinician, this week',
-            note: 'Booked share of each clinician’s bookable times, Monday to Saturday.',
+            title: tr('Utilization by clinician, this week'),
             child: Column(children: [
               for (final cl in clins)
                 Builder(builder: (context) {
                   final cap = week.fold<int>(0, (n, day) => n + desk.capacity(cl, day)), n = week.fold<int>(0, (s, day) => s + desk.booked(cl, day));
-                  return ShareBar(label: cl.short.isEmpty ? cl.name : cl.short, share: cap == 0 ? 0 : n / cap, figure: cap == 0 ? 'not in' : '$n / $cap');
+                  return ShareBar(label: cl.short.isEmpty ? cl.name : cl.short, share: cap == 0 ? 0 : n / cap, figure: cap == 0 ? tr('not in') : '$n / $cap');
                 }),
             ]),
           ),
         ]),
         Panel(
-          title: 'Volume by service',
-          note: 'All recorded bookings that weren’t cancelled or missed.',
+          title: tr('Volume by service'),
           child: Column(children: [
             for (final s in setup.services)
               ShareBar(label: s.name.split('·').first.trim(), share: (byService[s.id] ?? 0) / serviceTop, figure: '${byService[s.id] ?? 0}', flagLow: false),
-            if (setup.services.isEmpty) Text('No services yet.', style: t.bodySmall),
+            if (setup.services.isEmpty) Text(tr('No services yet.'), style: t.bodySmall),
           ]),
         ),
       ],

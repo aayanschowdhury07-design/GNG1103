@@ -2,6 +2,7 @@ import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n.dart';
 import '../ui.dart';
 
 /// What patients are told and when; the wording of each message; announcements; and every
@@ -39,43 +40,44 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   static String _count(String text) {
     final segments = (text.length / 160).ceil().clamp(1, 99);
-    return '${text.length} characters before {placeholders} are filled · $segments text segment${segments > 1 ? 's (costs more per message)' : ''}';
+    return segments > 1
+        ? tr('{chars} characters before {placeholders} are filled · {segments} text segments (costs more per message)', {'chars': text.length, 'segments': segments})
+        : tr('{chars} characters before {placeholders} are filled · 1 text segment', {'chars': text.length});
   }
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme, c = CfColors.of(context), d = widget.desk;
     final notice = widget.setup.clinic['notice'] as String?;
-    Widget fr(String k) => d.template(k, 'fr').isEmpty ? const Pill('FR missing', tone: Tone.warn) : const Pill('EN · FR', tone: Tone.good);
+    Widget fr(String k) => d.template(k, 'fr').isEmpty ? Pill(tr('FR missing'), tone: Tone.warn) : const Pill('EN · FR', tone: Tone.good);
     const fixed = Pill('EN · FR', tone: Tone.good);
     final remind = widget.setup.clinic['rules'] ?? const {};
 
     return PageFrame(
-      eyebrow: 'Messages go by push first, then text or email if not opened',
-      title: 'Notifications',
+      title: tr('Notifications'),
       children: [
         Columns(flex: const [3, 2], children: [
           Panel(
-            title: 'What patients are told',
-            child: SimpleTable(columns: const ['Message', 'When', 'Channels', 'Languages'], rows: [
-              [const Text('Booking confirmation'), const Text('Immediately'), const Text('Push, then text, then email'), fixed],
-              [const Text('Reminder, one-tap confirm'), Text(remind['remind48'] == false ? 'Off' : '48 h before'), const Text('Push, then email'), fixed],
-              [const Text('Reminder, one-tap confirm'), Text(remind['remind24'] == false ? 'Off' : '24 h before'), const Text('Push, then text'), fr('reminder24')],
-              [const Text('Intake form nudge'), const Text('24 h before if incomplete'), const Text('Push, then text'), fixed],
-              [const Text('Waitlist offer'), const Text('On a freed time'), const Text('Push and text'), fixed],
-              [const Text('Clinic announcement'), const Text('Manual'), const Text('Push, then email'), fixed],
-              [const Text('Cancellation, patient cancelled'), const Text('Immediately'), const Text('Push, then text'), fr('cancelPatient')],
-              [const Text('Cancellation, clinic cancelled'), const Text('Manual, staff pick a reason'), const Text('Text and email'), fr('cancelClinic')],
-              [const Text('Missed visit follow-up'), const Text('Manual, from Missed visits'), const Text('Text, then email'), fr('missed')],
+            title: tr('What patients are told'),
+            child: SimpleTable(columns: [tr('Message'), tr('When'), tr('Channels'), tr('Languages')], rows: [
+              [Text(tr('Booking confirmation')), Text(tr('Immediately')), Text(tr('Push, then text, then email')), fixed],
+              [Text(tr('Reminder, one-tap confirm')), Text(remind['remind48'] == false ? tr('Off') : tr('48 h before')), Text(tr('Push, then email')), fixed],
+              [Text(tr('Reminder, one-tap confirm')), Text(remind['remind24'] == false ? tr('Off') : tr('24 h before')), Text(tr('Push, then text')), fr('reminder24')],
+              [Text(tr('Intake form nudge')), Text(tr('24 h before if incomplete')), Text(tr('Push, then text')), fixed],
+              [Text(tr('Waitlist offer')), Text(tr('On a freed time')), Text(tr('Push and text')), fixed],
+              [Text(tr('Clinic announcement')), Text(tr('Manual')), Text(tr('Push, then email')), fixed],
+              [Text(tr('Cancellation, patient cancelled')), Text(tr('Immediately')), Text(tr('Push, then text')), fr('cancelPatient')],
+              [Text(tr('Cancellation, clinic cancelled')), Text(tr('Manual, staff pick a reason')), Text(tr('Text and email')), fr('cancelClinic')],
+              [Text(tr('Missed visit follow-up')), Text(tr('Manual, from Missed visits')), Text(tr('Text, then email')), fr('missed')],
             ]),
           ),
           Panel(
-            title: 'Message wording',
+            title: tr('Message wording'),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               DropdownButtonFormField<String>(
                 initialValue: _pick,
-                decoration: const InputDecoration(labelText: 'Template'),
-                items: [for (final e in messageTemplates.entries) DropdownMenuItem(value: e.key, child: Text(e.value.$1))],
+                decoration: InputDecoration(labelText: tr('Template')),
+                items: [for (final e in messageTemplates.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value.$1)))],
                 onChanged: (v) => setState(() {
                   _pick = v!;
                   _load();
@@ -85,24 +87,24 @@ class _NotificationsPageState extends State<NotificationsPage> {
               TextField(controller: _en, maxLines: 5, minLines: 3, decoration: const InputDecoration(labelText: 'English'), onChanged: (_) => setState(() {})),
               Padding(padding: const EdgeInsets.only(top: 4), child: Text(_count(_en.text), style: t.bodySmall)),
               const SizedBox(height: 12),
-              TextField(controller: _fr, maxLines: 5, minLines: 3, decoration: const InputDecoration(labelText: 'Français', hintText: 'Patients who chose French get this wording'), onChanged: (_) => setState(() {})),
-              Padding(padding: const EdgeInsets.only(top: 4), child: Text(_fr.text.isEmpty ? 'Not translated: French-speaking patients get the English text.' : _count(_fr.text), style: t.bodySmall?.copyWith(color: _fr.text.isEmpty ? c.warn : null))),
+              TextField(controller: _fr, maxLines: 5, minLines: 3, decoration: InputDecoration(labelText: 'Français', hintText: tr('Patients who chose French get this wording')), onChanged: (_) => setState(() {})),
+              Padding(padding: const EdgeInsets.only(top: 4), child: Text(_fr.text.isEmpty ? tr('Not translated: French-speaking patients get the English text.') : _count(_fr.text), style: t.bodySmall?.copyWith(color: _fr.text.isEmpty ? c.warn : null))),
               const SizedBox(height: 12),
-              Text('Placeholders: {first_name} {service} {clinician} {date} {time} {clinic} {link} {reason}', style: t.bodySmall),
+              Text('${tr('Placeholders:')} {first_name} {service} {clinician} {date} {time} {clinic} {link} {reason}', style: t.bodySmall),
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerLeft,
                 child: FilledButton(
-                  onPressed: () => act(context, () => d.saveTemplate(_pick, en: _en.text.trim(), fr: _fr.text.trim()), done: '${messageTemplates[_pick]!.$1} saved'),
-                  child: const Text('Save wording'),
+                  onPressed: () => act(context, () => d.saveTemplate(_pick, en: _en.text.trim(), fr: _fr.text.trim()), done: tr('{template} saved', {'template': tr(messageTemplates[_pick]!.$1)})),
+                  child: Text(tr('Save wording')),
                 ),
               ),
             ]),
           ),
         ]),
         Panel(
-          title: 'Clinic announcement',
-          note: 'Shows on the home screen of every patient of the clinic, and goes by push, then email, to everyone with a visit this week.',
+          title: tr('Clinic announcement'),
+          note: tr('Shows on the home screen of every patient of the clinic, and goes by push, then email, to everyone with a visit this week.'),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (notice != null && notice.isNotEmpty) ...[
               Container(
@@ -110,41 +112,40 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: c.accentSoft, borderRadius: BorderRadius.circular(8)),
                 child: Row(children: [
-                  Expanded(child: Text('Showing now: $notice', style: t.bodyMedium)),
-                  TextButton(onPressed: () => act(context, d.clearAnnouncement, done: 'Announcement removed from the patient app'), child: const Text('Remove')),
+                  Expanded(child: Text(tr('Showing now: {notice}', {'notice': notice}), style: t.bodyMedium)),
+                  TextButton(onPressed: () => act(context, d.clearAnnouncement, done: tr('Announcement removed from the patient app')), child: Text(tr('Remove'))),
                 ]),
               ),
               const SizedBox(height: 12),
             ],
             Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Expanded(child: TextField(controller: _announce, decoration: const InputDecoration(labelText: 'Message to patients', hintText: 'e.g. Parking lot B is closed this week.'))),
+              Expanded(child: TextField(controller: _announce, decoration: InputDecoration(labelText: tr('Message to patients'), hintText: tr('e.g. Parking lot B is closed this week.')))),
               const SizedBox(width: 12),
               FilledButton(
                 onPressed: () {
-                  if (_announce.text.trim().isEmpty) return say(context, 'Write the announcement first');
+                  if (_announce.text.trim().isEmpty) return say(context, tr('Write the announcement first'));
                   final text = _announce.text;
                   _announce.clear();
-                  act(context, () => d.announce(text), done: 'Announcement posted. It shows in the patient app now.');
+                  act(context, () => d.announce(text), done: tr('Announcement posted. It shows in the patient app now.'));
                 },
-                child: const Text('Send to patients'),
+                child: Text(tr('Send to patients')),
               ),
             ]),
           ]),
         ),
         Panel(
-          title: 'Delivery log',
-          note: 'Every message: when, to whom and how. Sending starts when Cloud Functions are on; until then messages wait here.',
+          title: tr('Delivery log'),
           child: SimpleTable(
-            columns: const ['Time', 'To', 'Message', 'Channel', 'Status'],
-            empty: 'No messages yet.',
+            columns: [tr('Time'), tr('To'), tr('Message'), tr('Channel'), tr('Status')],
+            empty: tr('No messages yet.'),
             rows: [
               for (final m in d.outbox.take(60))
                 [
-                  Text(m.at == null ? 'now' : '${shortDate(isoDate(m.at!))}, ${TimeOfDay.fromDateTime(m.at!).format(context)}', style: t.bodySmall),
+                  Text(m.at == null ? tr('now') : '${shortDate(isoDate(m.at!), lang: lang)}, ${TimeOfDay.fromDateTime(m.at!).format(context)}', style: t.bodySmall),
                   Text(m.to),
                   Text(m.message),
                   Text(m.channel, style: t.bodySmall),
-                  m.status == 'queued' ? const Pill('Waiting to send', tone: Tone.warn) : Pill(m.status, tone: m.status == 'delivered' ? Tone.good : Tone.mute),
+                  _status(m.status),
                 ],
             ],
           ),
@@ -153,3 +154,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 }
+
+/// How a message went, as the sendQueued Cloud Function records it.
+Widget _status(String s) => switch (s) {
+      'queued' => Pill(tr('Waiting to send'), tone: Tone.warn),
+      'sent' || 'delivered' => Pill(tr('Sent'), tone: Tone.good),
+      'sent (test)' => Pill(tr('Sent (test copy)'), tone: Tone.good),
+      'failed' => Pill(tr('Failed'), tone: Tone.crit),
+      _ => Pill(tr('Not sent'), tone: Tone.mute),
+    };

@@ -28,6 +28,8 @@ class HomeScreen extends StatelessWidget {
       final home = b.clinics.where((x) => x.isHome).firstOrNull;
       final elsewhere = b.upcomingVisits().where((a) => a != next && a.status.active).toList();
       final offer = b.pendingOffer();
+      // a clinic that doesn't use the reason-for-visit form leaves nothing to fill in
+      final formDone = next == null || next.formsDone || !b.clinic(next.clinicId).has('intakeForm');
       final hour = b.clock.now().hour, first = b.profile?.firstName ?? '';
       final greeting = s.t(hour < 12 ? 'greetMorning' : hour < 17 ? 'greetAfternoon' : 'greetEvening');
       return ScreenFrame(
@@ -50,7 +52,7 @@ class HomeScreen extends StatelessWidget {
           if (next != null && next.status.active && next.status != ApptStatus.complete)
             Section(
               title: s.t('todoTitle'),
-              trailing: Text(s.t(next.formsDone ? 'allDone' : 'oneLeft'), style: context.text.labelMedium?.copyWith(color: next.formsDone ? c.good : c.warn)),
+              trailing: Text(s.t(formDone ? 'allDone' : 'oneLeft'), style: context.text.labelMedium?.copyWith(color: formDone ? c.good : c.warn)),
               child: Column(children: [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -58,7 +60,7 @@ class HomeScreen extends StatelessWidget {
                   subtitle: Text(b.smsConsent ? s.t('smsOnSince', {'date': recordDate(b.smsConsentChangedOn, lang: context.lang)}) : s.t('smsOffShort')),
                   trailing: Text(s.t('doneShort'), style: context.text.labelMedium?.copyWith(color: c.good)),
                 ),
-                ListTile(
+                if (b.clinic(next.clinicId).has('intakeForm')) ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(s.t('reasonTitle')),
                   subtitle: Text(s.t(next.formsDone ? 'submitted' : 'formNeeded')),
@@ -170,7 +172,7 @@ class _Hero extends StatelessWidget {
         Wrap(spacing: 12, runSpacing: 8, children: [
           if (a.status == ApptStatus.booked)
             primary(s.t('confirmComing'), () => b.confirmVisit(a.id))
-          else if (b.canCheckIn(a))
+          else if (b.canCheckIn(a) && b.clinic(a.clinicId).has('phoneCheckIn'))
             primary(s.t('imHere'), () => open(CheckInScreen(appointmentId: a.id))),
           // before the day, managing the visit is the main thing left to do
           a.status != ApptStatus.booked && !b.canCheckIn(a)

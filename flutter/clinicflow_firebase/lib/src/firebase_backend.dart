@@ -132,6 +132,7 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
               accepting: d.data()['accepting'] ?? true,
               isHome: d.data()['isHome'] ?? false,
               notice: d.data()['notice'],
+              off: {for (final e in ((d.data()['features'] as Map?) ?? const {}).entries) if (e.value == false) '${e.key}'},
             ),
         ];
         _done(_firstClinics);
@@ -484,7 +485,18 @@ class FirebaseBackend extends ClinicFlowBackend implements TestInbox {
 
   Future<void> _startPhoneSignIn(String phone, String purpose) async {
     if (_emulatorHost == null) {
-      _pendingPhone = await _auth.signInWithPhoneNumber(phone);
+      try {
+        _pendingPhone = await _auth.signInWithPhoneNumber(phone);
+      } on FirebaseAuthException catch (e) {
+        debugPrint('phone code not sent: ${e.code} ${e.message}');
+        throw CodeSendException(switch (e.code) {
+          'invalid-phone-number' || 'missing-phone-number' => CodeProblem.badNumber,
+          'too-many-requests' || 'quota-exceeded' => CodeProblem.tooMany,
+          'network-request-failed' => CodeProblem.network,
+          // sign-in switched off, region not allowed, reCAPTCHA or billing: ours to fix, not theirs
+          _ => CodeProblem.unavailable,
+        });
+      }
       return;
     }
     final sent = await http.post(Uri.parse('$_authBase/accounts:sendVerificationCode?key=demo-key'),

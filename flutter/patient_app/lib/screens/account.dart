@@ -40,7 +40,7 @@ class _SignInScreenState extends State<SignInScreen> {
         if (mounted) {
           setState(() {
             _busy = false;
-            _error = s.t('errSend');
+            _error = codeSendError(s, e);
           });
         }
         return;

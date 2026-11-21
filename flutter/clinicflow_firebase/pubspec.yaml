@@ -12,6 +12,7 @@ dependencies:
   clinicflow_core:
     path: ../clinicflow_core
   cloud_firestore: ^7.1.0
+  crypto: ^3.0.6
   firebase_auth: ^7.0.1
   firebase_core: ^5.1.0
   flutter:

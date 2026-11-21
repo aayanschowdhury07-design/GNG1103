@@ -3,6 +3,7 @@ import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
 
 import '../csv.dart';
+import '../l10n.dart';
 import '../ui.dart';
 import '../visit.dart';
 
@@ -42,21 +43,21 @@ class _MissedPageState extends State<MissedPage> {
         context,
         () => desk.followUp(a, to),
         done: switch (to) {
-          'contacted' => 'Rebooking link to $first queued',
-          'excused' => 'Excused. Not counted in the no-show rate.',
-          _ => 'Marked rebooked',
+          'contacted' => tr('Rebooking link to {name} queued', {'name': first}),
+          'excused' => tr('Excused. Not counted in the no-show rate.'),
+          _ => tr('Marked rebooked'),
         },
         undo: to == 'contacted' ? null : () => desk.followUp(a, before),
       );
     }
 
     return PageFrame(
-      eyebrow: 'Last 30 days',
-      title: 'Missed visits',
+      eyebrow: tr('Last 30 days'),
+      title: tr('Missed visits'),
       actions: [
         SegmentedButton<bool>(
           showSelectedIcon: false,
-          segments: const [ButtonSegment(value: false, label: Text('Needs follow-up')), ButtonSegment(value: true, label: Text('All'))],
+          segments: [ButtonSegment(value: false, label: Text(tr('Needs follow-up'))), ButtonSegment(value: true, label: Text(tr('All')))],
           selected: {_all},
           onSelectionChanged: (v) => setState(() => _all = v.first),
         ),
@@ -69,43 +70,43 @@ class _MissedPageState extends State<MissedPage> {
             ]);
             desk.record('export.csv', 'missed', '${missed.length} rows');
           },
-          child: const Text('Export CSV'),
+          child: Text(tr('Export CSV')),
         ),
       ],
       children: [
         KpiRow(children: [
-          Kpi(label: 'Missed, 30 days', value: '${missed.length}', sub: '${missed.where((a) => state(a) == 'excused').length} excused'),
-          Kpi(label: 'Need follow-up', value: '$open', sub: open > 0 ? 'send a rebooking link' : 'all handled', tone: open > 0 ? Tone.warn : Tone.good),
-          Kpi(label: 'Rebooked', value: '${missed.where((a) => state(a) == 'rebooked').length}', sub: 'of ${missed.length} missed'),
-          Kpi(label: 'Repeat no-shows', value: '${missed.where((a) => times(a) > 1).map((a) => a.patientName).toSet().length}', sub: 'missed more than once'),
+          Kpi(label: tr('Missed, 30 days'), value: '${missed.length}', sub: tr('{n} excused', {'n': missed.where((a) => state(a) == 'excused').length})),
+          Kpi(label: tr('Need follow-up'), value: '$open', sub: open > 0 ? tr('send a rebooking link') : tr('all handled'), tone: open > 0 ? Tone.warn : Tone.good),
+          Kpi(label: tr('Rebooked'), value: '${missed.where((a) => state(a) == 'rebooked').length}', sub: tr('of {n} missed', {'n': missed.length})),
+          Kpi(label: tr('Repeat no-shows'), value: '${missed.where((a) => times(a) > 1).map((a) => a.patientName).toSet().length}', sub: tr('missed more than once')),
         ]),
         Panel(
           child: SimpleTable(
-            columns: const ['Missed', 'Patient', 'Clinician', 'Status', ''],
-            empty: _all ? 'No missed visits in the last 30 days.' : 'Nothing to follow up. Switch to All to see handled visits.',
+            columns: [tr('Missed'), tr('Patient'), tr('Clinician'), tr('Status'), ''],
+            empty: _all ? tr('No missed visits in the last 30 days.') : tr('Nothing to follow up. Switch to All to see handled visits.'),
             rows: [
               for (final a in rows)
                 [
-                  Text('${shortDate(a.date)} · ${formatTime(a.minute)}', style: t.bodyMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+                  Text('${shortDate(a.date, lang: lang)} · ${formatTime(a.minute, lang: lang)}', style: t.bodyMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(mainAxisSize: MainAxisSize.min, children: [
                       Text(a.patientName),
-                      if (times(a) > 1) ...[const SizedBox(width: 6), Pill('${times(a)}× missed', tone: Tone.crit)],
+                      if (times(a) > 1) ...[const SizedBox(width: 6), Pill(tr('{n}× missed', {'n': times(a)}), tone: Tone.crit)],
                     ]),
                     Text(serviceName(setup, a.serviceId), style: t.bodySmall),
                   ]),
                   Text(clinicianShort(setup, a.clinicianId), style: t.bodySmall),
-                  Pill(_follow[state(a)]!.$1, tone: _follow[state(a)]!.$2),
+                  Pill(tr(_follow[state(a)]!.$1), tone: _follow[state(a)]!.$2),
                   RowActions(switch (state(a)) {
-                    'open' => [small('Send rebooking link', () => follow(a, 'contacted'), primary: true), small('Excuse', () => follow(a, 'excused'))],
-                    'contacted' => [small('Mark rebooked', () => follow(a, 'rebooked'))],
+                    'open' => [small(tr('Send rebooking link'), () => follow(a, 'contacted'), primary: true), small(tr('Excuse'), () => follow(a, 'excused'))],
+                    'contacted' => [small(tr('Mark rebooked'), () => follow(a, 'rebooked'))],
                     _ => const <Widget>[],
                   }),
                 ],
             ],
           ),
         ),
-        Text('No-shows marked in the queue or the staff app land here right away. “Excused” keeps them out of the no-show rate, for example when a patient was in hospital.', style: t.bodySmall),
+        Text(tr('“Excused” keeps a missed visit out of the no-show rate.'), style: t.bodySmall),
       ],
     );
   }

@@ -4,6 +4,8 @@ import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
 
+import 'l10n.dart';
+
 import 'steps.dart';
 
 /// The setup wizard for a new clinic, full screen. Once setup is finished it lives on as a
@@ -31,10 +33,12 @@ class WizardScreen extends StatelessWidget {
           Flexible(child: Text(setup.clinic['name'] ?? '', overflow: TextOverflow.ellipsis)),
         ]),
         actions: [
+          const LangToggle(),
+          const SizedBox(width: 12),
           SetupTimer(setup: setup),
           const SizedBox(width: 16),
           if (wide) Text(setup.user?.email ?? '', style: t.bodySmall),
-          TextButton(onPressed: setup.signOut, child: const Text('Sign out')),
+          TextButton(onPressed: setup.signOut, child: Text(tr('Sign out'))),
           const SizedBox(width: 12),
         ],
         bottom: PreferredSize(preferredSize: const Size.fromHeight(1), child: Container(height: 1, color: c.line)),
@@ -69,8 +73,12 @@ class WizardBody extends StatelessWidget {
                 Expanded(
                   child: Text(
                     setup.finished
-                        ? '${setup.clinic['name']} is set up${setup.approved ? (setup.clinic['listed'] == true ? ' and listed for patients' : '') : ' and waiting for ClinicFlow’s review'}. Every step can still be changed.'
-                        : 'Setup isn’t finished yet. Patients can book once it is.',
+                        ? tr(
+                            setup.approved
+                                ? (setup.clinic['listed'] == true ? '{clinic} is set up and listed for patients. Every step can still be changed.' : '{clinic} is set up. Every step can still be changed.')
+                                : '{clinic} is set up and waiting for ClinicFlow’s review. Every step can still be changed.',
+                            {'clinic': setup.clinic['name']})
+                        : tr('Setup isn’t finished yet. Patients can book once it is.'),
                     style: t.bodyMedium?.copyWith(color: setup.finished ? c.good : c.fg, fontWeight: FontWeight.w500),
                   ),
                 ),
@@ -100,14 +108,14 @@ class _StepList extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = CfColors.of(context), t = Theme.of(context).textTheme;
     return ListView(padding: const EdgeInsets.fromLTRB(16, 20, 16, 20), children: [
-      Padding(padding: const EdgeInsets.fromLTRB(8, 0, 8, 12), child: Text('Setup', style: t.titleMedium)),
+      Padding(padding: const EdgeInsets.fromLTRB(8, 0, 8, 12), child: Text(tr('Setup'), style: t.titleMedium)),
       for (var i = 0; i < setupSteps.length; i++)
         Builder(builder: (context) {
           final n = i + 1, done = setup.doneSteps.contains(n), now = setup.step == n;
           return Semantics(
             button: true,
             selected: now,
-            label: 'Step $n, ${setupSteps[i]}${done ? ', done' : ''}',
+            label: done ? tr('Step {n}, {step}, done', {'n': n, 'step': tr(setupSteps[i])}) : tr('Step {n}, {step}', {'n': n, 'step': tr(setupSteps[i])}),
             excludeSemantics: true,
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
@@ -128,7 +136,7 @@ class _StepList extends StatelessWidget {
                     child: done ? Icon(Icons.check, size: 14, color: c.bg) : Text('$n', style: t.labelMedium?.copyWith(color: now ? c.accent : c.muted)),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(child: Text(setupSteps[i], style: t.bodyMedium?.copyWith(color: now ? c.fg : done ? c.fg : c.muted, fontWeight: now ? FontWeight.w600 : null))),
+                  Expanded(child: Text(tr(setupSteps[i]), style: t.bodyMedium?.copyWith(color: now ? c.fg : done ? c.fg : c.muted, fontWeight: now ? FontWeight.w600 : null))),
                 ]),
               ),
             ),
@@ -150,7 +158,7 @@ class _StepStrip extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text('${i + 1}. ${setupSteps[i]}'),
+                label: Text('${i + 1}. ${tr(setupSteps[i])}'),
                 selected: setup.step == i + 1,
                 avatar: setup.doneSteps.contains(i + 1) ? const Icon(Icons.check, size: 16) : null,
                 onSelected: (_) => setup.goToStep(i + 1),
@@ -191,7 +199,7 @@ class _SetupTimerState extends State<SetupTimer> {
     final mmss = '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
     final c = CfColors.of(context), onTarget = d.inMinutes < 60;
     return Text(
-      s.finished ? 'Finished in $mmss · target under 60 min' : 'Setup time $mmss',
+      s.finished ? tr('Finished in {time} · target under 60 min', {'time': mmss}) : tr('Setup time {time}', {'time': mmss}),
       style: Theme.of(context).textTheme.labelLarge?.copyWith(color: s.finished ? (onTarget ? c.good : c.warn) : c.muted, fontFeatures: const [FontFeature.tabularFigures()]),
     );
   }

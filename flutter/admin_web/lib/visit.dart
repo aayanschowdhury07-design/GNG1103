@@ -2,14 +2,15 @@ import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
 
+import 'l10n.dart';
 import 'ui.dart';
 
 String clinicianShort(ClinicSetup s, String id) {
   final c = s.clinicians.where((c) => c.id == id).firstOrNull;
-  return c == null ? 'Walk-in' : (c.short.isEmpty ? c.name : c.short);
+  return c == null ? tr('Walk-in') : (c.short.isEmpty ? c.name : c.short);
 }
 
-String serviceName(ClinicSetup s, String id) => s.services.where((x) => x.id == id).firstOrNull?.name ?? 'Visit';
+String serviceName(ClinicSetup s, String id) => s.services.where((x) => x.id == id).firstOrNull?.name ?? tr('Visit');
 
 /// The clinicians this person sees on the calendar and in the queue: everyone, or just themselves.
 List<SetupClinician> visibleClinicians(ClinicSetup s, ClinicDesk d) =>
@@ -28,17 +29,17 @@ Future<void> moveVisit(BuildContext context, ClinicDesk desk, DeskAppt a, ApptSt
     final ticket = await desk.setStatus(a, to);
     if (!context.mounted) return;
     final text = switch (to) {
-      ApptStatus.checkedIn => '$first checked in · ticket $ticket',
-      ApptStatus.waiting => '$first added to the queue',
-      ApptStatus.inVisit => '$first called in',
-      ApptStatus.complete => '$first’s visit complete',
-      ApptStatus.noShow => '$first marked no-show. Listed in Missed visits.',
-      _ => 'Updated',
+      ApptStatus.checkedIn => tr('{name} checked in · ticket {ticket}', {'name': first, 'ticket': ticket}),
+      ApptStatus.waiting => tr('{name} added to the queue', {'name': first}),
+      ApptStatus.inVisit => tr('{name} called in', {'name': first}),
+      ApptStatus.complete => tr('{name}’s visit complete', {'name': first}),
+      ApptStatus.noShow => tr('{name} marked no-show. Listed in Missed visits.', {'name': first}),
+      _ => tr('Updated'),
     };
     // checking in hands out a ticket number, so it isn't undone from here
     say(context, text, undo: to == ApptStatus.checkedIn ? null : () => desk.revert(a, to, a.status));
   } catch (e) {
-    if (context.mounted) say(context, 'Couldn’t update $first’s visit: ${'$e'.contains('permission') ? 'your role can view this but not change it' : e}');
+    if (context.mounted) say(context, tr('Couldn’t update {name}’s visit: {why}', {'name': first, 'why': '$e'.contains('permission') ? tr('your role can view this but not change it') : e}));
   }
 }
 
@@ -47,24 +48,24 @@ List<Widget> visitActions(BuildContext context, ClinicDesk desk, DeskAppt a, {bo
   // the day's actions happen on the day; other days are booked, moved or cancelled instead
   if (!canActOn(desk, a) || a.date != desk.today) return const [];
   final first = a.patientName.split(' ').first;
-  final arrived = small('Arrived', () => moveVisit(context, desk, a, ApptStatus.checkedIn), primary: primary);
+  final arrived = small(tr('Arrived'), () => moveVisit(context, desk, a, ApptStatus.checkedIn), primary: primary);
   if (desk.isLate(a)) {
     return [
       arrived,
       if (desk.me.runsDay)
-        small('Text', () => act(context, () => desk.text(a, 'Running late? We’re holding your time for 10 more minutes.'), done: 'Text to $first queued')),
-      small('No-show', () => moveVisit(context, desk, a, ApptStatus.noShow), danger: true),
+        small(tr('Text'), () => act(context, () => desk.text(a, 'Running late? We’re holding your time for 10 more minutes.'), done: tr('Text to {name} queued', {'name': first}))),
+      small(tr('No-show'), () => moveVisit(context, desk, a, ApptStatus.noShow), danger: true),
     ];
   }
   return switch (a.status) {
     ApptStatus.booked || ApptStatus.confirmed => [
         arrived,
-        if (a.status == ApptStatus.booked && desk.me.runsDay) small('Remind', () => act(context, () => desk.remind(a), done: 'Reminder to $first queued')),
-        if (!a.formsDone && desk.me.runsDay) small('Send form', () => act(context, () => desk.sendForm(a), done: 'Form link to $first queued')),
+        if (a.status == ApptStatus.booked && desk.me.runsDay) small(tr('Remind'), () => act(context, () => desk.remind(a), done: tr('Reminder to {name} queued', {'name': first}))),
+        if (!a.formsDone && desk.me.runsDay) small(tr('Send form'), () => act(context, () => desk.sendForm(a), done: tr('Form link to {name} queued', {'name': first}))),
       ],
-    ApptStatus.checkedIn => [small('Add to queue', () => moveVisit(context, desk, a, ApptStatus.waiting), primary: primary)],
-    ApptStatus.waiting => [small('Call in', () => moveVisit(context, desk, a, ApptStatus.inVisit), primary: primary)],
-    ApptStatus.inVisit => [small('Complete', () => moveVisit(context, desk, a, ApptStatus.complete))],
+    ApptStatus.checkedIn => [small(tr('Add to queue'), () => moveVisit(context, desk, a, ApptStatus.waiting), primary: primary)],
+    ApptStatus.waiting => [small(tr('Call in'), () => moveVisit(context, desk, a, ApptStatus.inVisit), primary: primary)],
+    ApptStatus.inVisit => [small(tr('Complete'), () => moveVisit(context, desk, a, ApptStatus.complete))],
     _ => const [],
   };
 }
@@ -77,7 +78,7 @@ Future<void> showVisit(BuildContext context, ClinicSetup setup, ClinicDesk desk,
         builder: (context, _) {
           final a = desk.appointments.where((x) => x.id == apptId).firstOrNull;
           final t = Theme.of(context).textTheme, c = CfColors.of(context);
-          if (a == null) return const AlertDialog(content: Text('This visit is no longer available.'));
+          if (a == null) return AlertDialog(content: Text(tr('This visit is no longer available.')));
           Widget line(String label, String value) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -91,23 +92,23 @@ Future<void> showVisit(BuildContext context, ClinicSetup setup, ClinicDesk desk,
             content: SizedBox(
               width: 420,
               child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                StatusMark(shownStatus(desk, a)),
+                StatusMark(shownStatus(desk, a), label: tr(shownStatus(desk, a).label)),
                 const SizedBox(height: 12),
-                line('When', '${shortDate(a.date)}, ${formatTime(a.minute)}'),
-                line('With', clinicianShort(setup, a.clinicianId)),
-                line('Service', serviceName(setup, a.serviceId)),
-                if (a.ticket != null) line('Ticket', a.ticket!),
-                if (desk.me.runsDay) line('Phone', a.phone != null && a.phone!.isNotEmpty ? a.phone! : (a.phoneLast4 == null ? 'Not given' : 'ends in ${a.phoneLast4}')),
-                line('Booked', a.bookedBy != null ? 'by the front desk' : a.patientUid != null ? 'online by the patient' : 'before ClinicFlow'),
-                line('Form', a.formsDone ? 'Done' : 'Not filled in yet'),
+                line(tr('When'), '${shortDate(a.date, lang: lang)}, ${formatTime(a.minute, lang: lang)}'),
+                line(tr('With'), clinicianShort(setup, a.clinicianId)),
+                line(tr('Service'), serviceName(setup, a.serviceId)),
+                if (a.ticket != null) line(tr('Ticket'), a.ticket!),
+                if (desk.me.runsDay) line(tr('Phone'), a.phone != null && a.phone!.isNotEmpty ? a.phone! : (a.phoneLast4 == null ? tr('Not given') : tr('ends in {last4}', {'last4': a.phoneLast4}))),
+                line(tr('Booked'), a.bookedBy != null ? tr('by the front desk') : a.patientUid != null ? tr('online by the patient') : tr('before ClinicFlow')),
+                line(tr('Form'), a.formsDone ? tr('Done') : tr('Not filled in yet')),
                 if (intake != null) ...[
-                  line('Visit type', '${intake['visitType'] ?? ''}'),
-                  if ('${intake['note'] ?? ''}'.isNotEmpty) line('Note', '${intake['note']}'),
+                  line(tr('Visit type'), '${intake['visitType'] ?? ''}'),
+                  if ('${intake['note'] ?? ''}'.isNotEmpty) line(tr('Note'), '${intake['note']}'),
                 ],
-                if (a.status == ApptStatus.cancelled) line('Cancelled', a.cancelledBy == 'clinic' ? 'by the clinic' : 'by the patient'),
+                if (a.status == ApptStatus.cancelled) line(tr('Cancelled'), a.cancelledBy == 'clinic' ? tr('by the clinic') : tr('by the patient')),
                 const SizedBox(height: 16),
                 RowActions(visitActions(context, desk, a, primary: true)),
-                if (!canActOn(desk, a)) Text('Your role can view this visit but not change it.', style: t.bodySmall?.copyWith(color: c.warn)),
+                if (!canActOn(desk, a)) Text(tr('Your role can view this visit but not change it.'), style: t.bodySmall?.copyWith(color: c.warn)),
               ]),
             ),
             actions: [
@@ -117,11 +118,11 @@ Future<void> showVisit(BuildContext context, ClinicSetup setup, ClinicDesk desk,
                   onPressed: () async {
                     final reason = await _cancelReason(context);
                     if (reason == null || !context.mounted) return;
-                    await act(context, () => desk.cancel(a, reason), done: '${a.patientName.split(' ').first}’s visit cancelled. The time is open for the waitlist.');
+                    await act(context, () => desk.cancel(a, reason), done: tr('{name}’s visit cancelled. The time is open for the waitlist.', {'name': a.patientName.split(' ').first}));
                   },
-                  child: const Text('Cancel visit'),
+                  child: Text(tr('Cancel visit')),
                 ),
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+              TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Close'))),
             ],
           );
         },
@@ -131,11 +132,11 @@ Future<void> showVisit(BuildContext context, ClinicSetup setup, ClinicDesk desk,
 Future<String?> _cancelReason(BuildContext context) => showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Why is the clinic cancelling?'),
+        title: Text(tr('Why is the clinic cancelling?')),
         children: [
           for (final r in const ['Clinician is ill', 'Clinic closure', 'Booked in error', 'Patient asked by phone'])
-            SimpleDialogOption(onPressed: () => Navigator.pop(context, r), child: Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(r))),
-          SimpleDialogOption(onPressed: () => Navigator.pop(context), child: const Text('Keep the visit')),
+            SimpleDialogOption(onPressed: () => Navigator.pop(context, r), child: Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Text(tr(r)))),
+          SimpleDialogOption(onPressed: () => Navigator.pop(context), child: Text(tr('Keep the visit'))),
         ],
       ),
     );

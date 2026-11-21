@@ -105,7 +105,7 @@ class VisitScreen extends StatelessWidget {
                       ),
                   ]),
           ),
-          if (a.status.active && !a.formsDone)
+          if (a.status.active && !a.formsDone && b.clinic(a.clinicId).has('intakeForm'))
             Section(
               title: s.t('beforeArrive'),
               child: Row(children: [
@@ -115,9 +115,11 @@ class VisitScreen extends StatelessWidget {
             ),
           const SizedBox(height: 16),
           if (a.status == ApptStatus.booked) FilledButton(onPressed: () => b.confirmVisit(a.id), child: Text(s.t('confirmComing'))),
-          if ((a.status == ApptStatus.confirmed || a.status == ApptStatus.late) && b.canCheckIn(a))
+          if ((a.status == ApptStatus.confirmed || a.status == ApptStatus.late) && b.canCheckIn(a) && b.clinic(a.clinicId).has('phoneCheckIn'))
             FilledButton(onPressed: () => open(CheckInScreen(appointmentId: a.id)), child: Text(s.t('imHere'))),
-          if (a.status == ApptStatus.confirmed && !b.canCheckIn(a)) Text(s.t('confirmedWait'), style: context.text.bodyMedium?.copyWith(color: c.good)),
+          if ((a.status == ApptStatus.confirmed || a.status == ApptStatus.late) && !b.clinic(a.clinicId).has('phoneCheckIn'))
+            Text(s.t('checkInDesk'), style: context.text.bodyMedium?.copyWith(color: c.good))
+          else if (a.status == ApptStatus.confirmed && !b.canCheckIn(a)) Text(s.t('confirmedWait'), style: context.text.bodyMedium?.copyWith(color: c.good)),
           if (a.status.upcoming) ...[
             TextButton(
               onPressed: () {
@@ -126,7 +128,7 @@ class VisitScreen extends StatelessWidget {
               },
               child: Text(s.t('changeTime')),
             ),
-            TextButton(onPressed: () => open(WaitlistScreen(appointmentId: a.id)), child: Text(s.t('getEarlier'))),
+            if (b.clinic(a.clinicId).has('waitlist')) TextButton(onPressed: () => open(WaitlistScreen(appointmentId: a.id)), child: Text(s.t('getEarlier'))),
             TextButton(onPressed: () => _askCancel(context, a), style: TextButton.styleFrom(foregroundColor: c.crit), child: Text(s.t('cancelVisit'))),
           ],
           const SizedBox(height: 8),
@@ -183,13 +185,13 @@ class _CheckInScreenState extends State<CheckInScreen> {
           children: [
             Text('${longDay(a.date, b.today, lang: lang)} · ${formatTime(a.minute, lang: lang)} · ${b.clinician(a.clinicianId).short}', style: context.text.bodySmall),
             const SizedBox(height: 8),
-            Text(
+            if (clinic.has('locationCheck')) Text(
               away == null
                   ? s.t('noLocation', {'clinic': clinic.name})
                   : s.t(away <= .2 ? 'nearOpen' : 'farAway', {'d': distanceText(away), 'clinic': clinic.name}),
               style: context.text.bodyLarge,
             ),
-            if (away == null)
+            if (away == null && clinic.has('locationCheck'))
               Align(
                 alignment: Alignment.centerLeft,
                 child: _locating
@@ -197,7 +199,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                     : TextButton.icon(onPressed: _locate, icon: const Icon(Icons.my_location, size: 18), label: Text(s.t('useLocation'))),
               ),
             if (_refused) Text(s.t('locationOff'), style: context.text.bodySmall?.copyWith(color: c.warn)),
-            if (!a.formsDone) ...[
+            if (!a.formsDone && clinic.has('intakeForm')) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -205,7 +207,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
                 child: Text(s.t('formStillOpen'), style: context.text.bodyMedium?.copyWith(color: c.warn)),
               ),
             ],
-            if (a.phoneLast4 != null) ...[
+            if (a.phoneLast4 != null && clinic.has('kiosk')) ...[
               const SizedBox(height: 16),
               Text(s.t('tabletHint', {'d': a.phoneLast4!}), style: context.text.bodySmall),
             ],

@@ -1,5 +1,5 @@
 name: clinicflow_staff
-description: "A new Flutter project."
+description: "ClinicFlow staff app: the day's queue, schedule and waitlist on a phone."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -33,7 +33,18 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
+  firebase_core: ^5.1.0
+  cloud_firestore: ^7.1.0
+  firebase_auth: ^7.0.1
+  google_fonts: ^9.0.0
+  web: ^1.1.2
+  clinicflow_core:
+    path: ../clinicflow_core
+  clinicflow_firebase:
+    path: ../clinicflow_firebase
 
 dev_dependencies:
   flutter_test:

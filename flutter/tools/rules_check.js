@@ -2,6 +2,8 @@
 // as Priya (seeded patient) and as a second patient, then tries what each should and shouldn't do.
 //   node flutter/tools/seed_emulator.js && node flutter/tools/rules_check.js
 const PROJECT = 'demo-clinicflow';
+// the seeded test accounts' password lives in the seed script, not here
+const STAFF_PASSWORD = require('fs').readFileSync(require('path').join(__dirname, 'seed_emulator.js'), 'utf8').match(/STAFF_PASSWORD = '([^']+)'/)[1];
 const AUTH = 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1';
 const DB = `projects/${PROJECT}/databases/(default)/documents`;
 const FS = `http://127.0.0.1:8080/v1/${DB}`;
@@ -34,7 +36,7 @@ async function staffUser(email) {
 }
 // Maple Grove's seeded staff (same password as STAFF_PASSWORD in seed_emulator.js)
 async function seededStaff(email) {
-  const r = await (await post(`${AUTH}/accounts:signInWithPassword?key=x`, { email, password: 'maplegrove-test-1', returnSecureToken: true })).json();
+  const r = await (await post(`${AUTH}/accounts:signInWithPassword?key=x`, { email, password: STAFF_PASSWORD, returnSecureToken: true })).json();
   if (!r.idToken) throw new Error(`Sign-in failed for ${email}. Run seed_emulator.js first.`);
   return { token: r.idToken, uid: r.localId };
 }
@@ -45,7 +47,8 @@ async function verifyEmail(uid) {
 }
 
 // Firestore REST helpers
-const val = (x) => (typeof x === 'string' ? { stringValue: x } : Number.isInteger(x) ? { integerValue: String(x) } : x === null ? { nullValue: null } : { booleanValue: x });
+const val = (x) => (typeof x === 'string' ? { stringValue: x } : Number.isInteger(x) ? { integerValue: String(x) } : x === null ? { nullValue: null }
+  : typeof x === 'object' ? { mapValue: { fields: fields(x) } } : { booleanValue: x });
 const fields = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, val(v)]));
 const get = (path, token) => fetch(`${FS}/${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
 const commit = (writes, token) => post(`${FS}:commit`, { writes }, token);
@@ -264,6 +267,24 @@ async function main() {
   await expect('the front desk changes a colleague\'s role', false, commit([update(`clinics/mg/staff/${support.uid}`, { role: 'admin' })], desk.token));
   await expect('the front desk edits the clinic profile', false, commit([update('clinics/mg', { name: 'Renamed' })], desk.token));
   await expect('the admin posts an announcement', true, commit([update('clinics/mg', { notice: 'Closed Monday for the holiday.' })], admin.token));
+
+  console.log('-- features switched off in Settings');
+  const features = (on) => commit([update('clinics/mg', { features: { waitlist: on, phoneCheckIn: on } })], admin.token);
+  await expect('the front desk switches features off', false, commit([update('clinics/mg', { features: { waitlist: false } })], desk.token));
+  await expect('the admin switches the waitlist and phone check-in off', true, features(false));
+  await expect('a patient joins the waitlist while it is off', false, commit([create(`clinics/mg/waitlist/${other.uid}`, { uid: other.uid, name: 'X' })], other.token));
+  await expect('a patient checks in from their phone while it is off', false, commit([create(`clinics/mg/queue/${TODAY}_A-90`, { ticket: 'A-90', n: 90, date: TODAY, clinicianId: 'osei', status: 'checkedIn' })], priya.token));
+  await expect('the front desk still checks a patient in at the desk', true, commit([create(`clinics/mg/queue/${TODAY}_A-91`, { ticket: 'A-91', n: 91, date: TODAY, clinicianId: 'osei', status: 'checkedIn' })], desk.token));
+  await expect('the admin switches them back on', true, features(true));
+  await expect('a patient joins the waitlist once it is on again', true, commit([create(`clinics/mg/waitlist/${other.uid}`, { uid: other.uid, name: 'X' })], other.token));
+
+  console.log('-- the check-in tablet PIN (stored as a hash, staff only)');
+  const pin = { pinHash: 'abc', salt: 'xyz' };
+  await expect('the admin sets the tablet PIN', true, commit([update('clinics/mg/private/kiosk', pin)], admin.token));
+  await expect('the front desk reads the tablet PIN record', true, get('clinics/mg/private/kiosk', desk.token));
+  await expect('the front desk changes the tablet PIN', false, commit([update('clinics/mg/private/kiosk', pin)], desk.token));
+  await expect('a patient reads the tablet PIN record', false, get('clinics/mg/private/kiosk', priya.token));
+  await expect('a guest reads the tablet PIN record', false, get('clinics/mg/private/kiosk', anon.token));
 
   console.log('-- joining through an invitation (M. Lam, invited as a clinician)');
   const lam = await staffUser('lam@maplegrove.test');

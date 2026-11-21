@@ -1,9 +1,12 @@
 import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'auth_screen.dart';
 import 'firebase_options.dart';
+import 'l10n.dart';
+import 'portal_theme.dart';
 import 'review.dart';
 import 'shell.dart';
 import 'wizard.dart';
@@ -31,12 +34,16 @@ class AdminApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ClinicFlow for clinics',
+    // the whole site redraws in the chosen language (English or French)
+    return ValueListenableBuilder<String>(
+      valueListenable: staffLang,
+      builder: (context, code, _) => MaterialApp(
+      locale: Locale(code, 'CA'),
+      supportedLocales: const [Locale('en', 'CA'), Locale('fr', 'CA')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      title: tr('ClinicFlow for clinics'),
       debugShowCheckedModeBanner: false,
-      theme: clinicFlowTheme(Brightness.light),
-      darkTheme: clinicFlowTheme(Brightness.dark),
-      themeMode: ThemeMode.light, // light is the main look; dark comes with a toggle later
+      theme: staffPortalTheme(), // the staff portal look; the patient app keeps the shared theme
       home: ListenableBuilder(
         listenable: setup,
         builder: (context, _) {
@@ -51,6 +58,7 @@ class AdminApp extends StatelessWidget {
           return StaffShell(setup: setup);
         },
       ),
+    ),
     );
   }
 }

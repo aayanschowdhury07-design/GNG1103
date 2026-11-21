@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#2c4c7c">
+<meta name="description" content="Maple Grove Clinic in Ottawa: physiotherapy, chiropractic and massage therapy. Book online.">
+<title>ClinicFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&family=Lora:ital@0;1&display=swap">
+<style>
+/* =============================================================================
+   A clinic's public page, made by ClinicFlow from the clinic's setup.
+   Layout and type follow the Briarwood mockup; the colours are ClinicFlow's.
+   Each clinic's brand comes in through the --brand-* variables below, set from
+   its setup (and later its uploaded logo), so the same page fits every clinic.
+   ============================================================================= */
+:root {
+  /* the clinic's brand: ClinicFlow blue by default */
+  --deep: #2c4c7c;        /* utility bar, buttons, footer */
+  --deep-hover: #213a60;
+  --ink: #1d2c40;         /* headings and text */
+  --accent: #3c649f;      /* the italic line in the headline */
+  --tint: #e6ecf4;        /* hero panel and team band */
+  --label: #44597a;       /* small caps labels */
+  --rule: #7187a8;        /* the short rule before labels, the sprig */
+  --dot: #b8cdea;         /* "accepting new patients" dot */
+  /* the rest stays the same for every clinic */
+  --muted: #4f5b6b;
+  --paper: #faf9f6;
+  --line: #cdd5df;
+  --focus: #c0862a;
+  --card-1: #e9eef5; --card-1-line: #d7dfea; --card-1-ink: #2a4466;
+  --card-2: #f4ecdf; --card-2-line: #e6dccd; --card-2-ink: #665337;
+  --card-3: #e7eef0; --card-3-line: #d9e3e6; --card-3-ink: #38535b;
+  --serif: Lora, Georgia, serif;
+  --sans: 'DM Sans', Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 18px; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.55 var(--sans); }
+button, select, input { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; }
+button, a, summary { touch-action: manipulation; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 400; }
+.wrap { width: 88%; max-width: 1360px; margin: 0 auto; }
+.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.skip { position: fixed; top: -70px; z-index: 5; background: #fff; padding: 12px; }
+.skip:focus { top: 0; }
+
+/* mockup controls, not part of the page */
+.mock { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 8px 16px; background: #18181b; color: #d4d4d8; font: 500 13px/1 'DM Sans', sans-serif; }
+.mock b { color: #fff; }
+.mock button { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #18181b; box-shadow: 0 0 0 1px #71717a; }
+.mock button[aria-pressed="true"] { box-shadow: 0 0 0 2px #fff; }
+.mock span.note { color: #a1a1aa; }
+
+/* utility bar */
+.utility { background: var(--deep); color: #fff; font-size: 12px; letter-spacing: .12px; }
+.utility .wrap { height: 34px; display: flex; align-items: center; justify-content: space-between; }
+.status, .utility-right, .utility-right a { display: flex; align-items: center; }
+.status { gap: 9px; }
+.pending main, .pending footer, .pending .utility, .pending header { visibility: hidden; }
+.gone { max-width: 520px; margin: 18vh auto; padding: 0 24px; text-align: center; font: 400 17px/1.6 'DM Sans', sans-serif; color: #3b3b3b; }
+.gone h1 { font-size: 34px; margin: 0 0 10px; }
+.status i { background: var(--dot); width: 7px; height: 7px; border-radius: 50%; }
+.utility-right { gap: 18px; }
+.utility-right a { gap: 7px; }
+.utility-right a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.utility .i { width: 13px; height: 13px; }
+.divider { height: 12px; width: 1px; background: rgba(255, 255, 255, .35); }
+.staff { font-weight: 600; }
+
+/* header */
+header { background: var(--paper); }
+.head { display: flex; align-items: center; gap: 36px; min-height: 91px; }
+.brand { display: inline-flex; align-items: center; gap: 12px; flex: none; line-height: 1; font: normal 29px/.97 var(--serif); letter-spacing: -1.5px; }
+.brand small { display: block; font: 600 9px/1.35 var(--sans); letter-spacing: 3.4px; margin: 6px 0 0 2px; text-transform: uppercase; }
+.brand .mark { width: 46px; height: 46px; display: grid; place-items: center; flex: none; color: var(--deep); }
+.brand .mark svg { width: 46px; height: 46px; }
+.brand .mark img { width: 46px; height: 46px; object-fit: contain; }
+.head nav { margin-left: auto; display: flex; gap: clamp(16px, 2.3vw, 40px); font-size: 14px; font-weight: 600; }
+.head nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.btn { background: var(--deep); color: #fff; border: 1px solid var(--deep); border-radius: 5px; min-height: 47px; padding: 12px 22px; display: inline-flex; gap: 11px; align-items: center; justify-content: center; font: 600 14px/1.25 var(--sans); transition: background .18s; }
+.btn:hover { background: var(--deep-hover); }
+.head-book { min-height: 42px; padding: 10px 17px; }
+.menu { display: none; }
+
+/* hero */
+.hero { display: grid; grid-template-columns: 50% 50%; min-height: clamp(430px, 32vw, 530px); }
+.herocopy { background: var(--tint); position: relative; display: flex; align-items: center; padding: 57px 7% 59px max(12%, calc((100vw - 1360px) / 2)); overflow: hidden; }
+.heroinner { position: relative; z-index: 1; }
+.label { font: 600 10.5px/1.3 var(--sans); letter-spacing: 2.05px; display: flex; align-items: center; gap: 12px; color: var(--label); text-transform: uppercase; }
+.rule { width: 29px; height: 1.5px; background: var(--rule); display: inline-block; }
+h1 { font-size: clamp(60px, 5.35vw, 89px); line-height: 1.035; letter-spacing: -.066em; margin: 23px 0 20px; }
+h1 em { font-weight: 400; color: var(--accent); }
+.intro, .bodycopy { color: var(--muted); line-height: 1.65; }
+.intro { font-size: clamp(16px, 1.19vw, 19px); max-width: 410px; }
+.actions { display: flex; gap: 27px; align-items: center; margin-top: 28px; flex-wrap: wrap; }
+.textlink { background: transparent; border: 0; border-bottom: 1px solid #93a0b2; padding: 2px 0 3px; display: inline-flex; align-items: center; gap: 9px; font: 600 14px/1.45 var(--sans); width: max-content; }
+.textlink:hover { border-color: var(--ink); }
+.botanical { position: absolute; right: -35px; bottom: -57px; opacity: .3; width: clamp(120px, 14vw, 225px); pointer-events: none; transform: rotate(1deg); color: var(--rule); }
+.herophoto { position: relative; overflow: hidden; min-height: 100%; }
+.herophoto img { position: absolute; width: 100%; height: 100%; object-fit: cover; object-position: 50% 47%; }
+.bookhint { margin-top: 14px; font-size: 13px; color: var(--muted); }
+
+/* services */
+.services { padding: 54px 0 66px; }
+.sectionhead { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 12px 0 25px; }
+h2 { font-size: clamp(37px, 3.2vw, 52px); line-height: 1.13; letter-spacing: -.055em; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.card { background: var(--card-1); border: 1px solid var(--card-1-line); color: var(--card-1-ink); border-radius: 7px; position: relative; padding: 24px 26px 27px; display: flex; align-items: flex-start; flex-direction: column; text-align: left; transition: transform .2s, border-color .2s; }
+.card:nth-child(3n+2) { background: var(--card-2); border-color: var(--card-2-line); color: var(--card-2-ink); }
+.card:nth-child(3n+3) { background: var(--card-3); border-color: var(--card-3-line); color: var(--card-3-ink); }
+.card:hover { transform: translateY(-3px); border-color: #93a0b2; }
+.service-art { width: 43px; height: 43px; stroke: currentColor; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.65; }
+.card h3 { margin: 16px 0 6px; color: var(--ink); font-size: 25px; letter-spacing: -1px; }
+.card p { color: #46505c; font-size: 14px; line-height: 1.58; padding-right: 12px; }
+.card .len { margin-top: 12px; font-size: 13px; font-weight: 600; color: currentColor; }
+.circle { display: grid; place-items: center; border: 1px solid currentColor; opacity: .83; position: absolute; right: 22px; top: 25px; width: 28px; height: 28px; border-radius: 50%; }
+.circle .i { width: 15px; }
+
+/* team */
+.team { background: var(--tint); padding: 60px 0; }
+.teamgrid { display: grid; grid-template-columns: .7fr 1fr; align-items: center; gap: 8%; }
+.teamgrid > img { width: 100%; max-height: 340px; object-fit: cover; object-position: center 29%; border-radius: 5px; }
+.team h2, .guide h2 { margin: 16px 0; }
+.bodycopy { max-width: 480px; }
+.team .textlink { margin-top: 19px; }
+
+/* patient guide */
+.guide { padding: 80px 0; display: grid; grid-template-columns: 1fr 1.15fr; gap: 8%; }
+details { border-bottom: 1px solid var(--line); padding: 15px 0; }
+details:first-child { border-top: 1px solid var(--line); }
+summary { font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: '+'; font: 25px/1 var(--sans); }
+details[open] summary::after { content: '−'; }
+details p { padding: 12px 30px 0 0; font-size: 15px; color: var(--muted); }
+
+/* footer */
+footer { background: var(--deep); color: #f2f5fa; padding: 45px 0 20px; }
+.footgrid { display: grid; grid-template-columns: 1.25fr 1fr 1fr 1fr; gap: 20px; }
+footer .brand .mark { color: #fff; }
+footer .brand .mark img { background: #fff; border-radius: 8px; padding: 4px; }
+footer .brand { align-self: start; }
+.footgrid h3 { font-size: 21px; margin: 0 0 8px; }
+.footgrid p { font-size: 14px; color: #dbe3ee; }
+.footgrid a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.footgrid .staffcol a { display: inline-flex; gap: 8px; align-items: center; font-weight: 600; font-size: 14px; margin-top: 4px; }
+.footnote { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 12px; border-top: 1px solid rgba(255, 255, 255, .22); margin-top: 32px; padding-top: 15px; color: #cbd6e6; }
+.footnote .cf { display: inline-flex; align-items: center; gap: 6px; }
+.footnote .cf svg { width: 14px; height: 14px; }
+
+/* dialog */
+dialog { border: 1px solid var(--line); border-radius: 10px; padding: 39px 34px; width: min(490px, calc(100% - 32px)); max-height: 88dvh; background: var(--paper); color: var(--ink); }
+dialog::backdrop { background: rgba(20, 32, 50, .62); }
+body:has(dialog[open]) { overflow: hidden; }
+.close { background: transparent; border: 0; position: absolute; right: 10px; top: 6px; font-size: 27px; width: 38px; height: 38px; }
+.dialog-label { font: 600 11px var(--sans); letter-spacing: 1.7px; margin-bottom: 14px; text-transform: uppercase; color: var(--label); }
+dialog h2 { font-size: 34px; margin: 0 0 14px; }
+dialog p { margin: 10px 0; color: var(--muted); }
+dialog .btn { margin-top: 16px; }
+dialog li { margin: 5px 0; }
+dialog ul { padding-left: 22px; }
+.person { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; }
+.person h3 { font-size: 22px; }
+.person p { font-size: 14px; margin: 4px 0 0; }
+
+@media (min-width: 1600px) { .hero { min-height: 520px; } .intro { max-width: 450px; } }
+@media (max-width: 1000px) { .head { gap: 19px; } .head nav { gap: 16px; font-size: 13px; } .wrap { width: 91%; } .herocopy { padding-left: 9%; padding-right: 6%; } .actions { gap: 17px; } h1 { font-size: clamp(54px, 6.4vw, 64px); } .card { padding: 20px; } .hero { min-height: 410px; } .botanical { right: -46px; } .intro { max-width: 340px; } .footgrid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 760px) {
+  .head { min-height: 71px; position: relative; gap: 14px; }
+  .brand { font-size: 24px; gap: 8px; } .brand .mark, .brand .mark svg, .brand .mark img { width: 36px; height: 36px; } .brand small { font-size: 7px; letter-spacing: 2.7px; margin-top: 5px; }
+  .head-book { margin-left: auto; font-size: 12px; min-height: 37px; padding: 9px 12px; } .head-book .i { width: 14px; }
+  .menu { display: grid; place-content: center; gap: 5px; border: 0; background: none; width: 33px; height: 38px; } .menu span { width: 21px; height: 1.5px; background: var(--ink); }
+  .head nav { display: none; }
+  .head nav.open { display: flex; position: absolute; top: 100%; left: -5%; right: -5%; background: var(--paper); z-index: 4; flex-direction: column; gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 8px 6% 14px; }
+  .head nav a { padding: 9px 0; font-size: 16px; }
+  .hero { grid-template-columns: 1fr; } .herocopy { padding: 39px 6% 36px; } .heroinner { max-width: 510px; }
+  .herophoto { height: clamp(220px, 61vw, 385px); } .herophoto img { object-position: 50% 41%; }
+  h1 { font-size: clamp(53px, 10vw, 70px); margin: 18px 0 14px; } .intro { max-width: 425px; } .actions { margin-top: 23px; }
+  .botanical { right: -12px; bottom: -35px; width: 30%; max-width: 155px; }
+  .utility-right .phone, .divider { display: none; } .utility .wrap { height: 30px; } .utility { font-size: 10.5px; }
+  .wrap { width: 88%; } .cards { grid-template-columns: 1fr; } .services { padding: 37px 0 42px; }
+  .sectionhead { align-items: flex-start; flex-direction: column; gap: 13px; margin-bottom: 20px; }
+  .card { padding: 22px 23px; min-height: 140px; } .card h3 { margin-top: 10px; }
+  .teamgrid, .guide { grid-template-columns: 1fr; gap: 26px; } .team { padding: 36px 0; } .teamgrid > img { height: 290px; object-position: center 26%; } .guide { padding: 44px 0; }
+  .footgrid { grid-template-columns: 1fr 1fr; } .footgrid .brand { grid-column: 1 / -1; margin-bottom: 12px; }
+  .textlink { font-size: 13px; } dialog { padding: 35px 22px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+</style>
+</head>
+<body class="pending">
+
+
+<a class="skip" href="#main">Skip to content</a>
+<svg class="defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+<symbol id="arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.4"/></symbol>
+<symbol id="phone" viewBox="0 0 24 24"><path d="m5 3 4 1 1 5-3 2c1 3 3 5 6 6l2-3 5 1 1 4c-1 3-5 3-8 1C7 17 3 12 2.8 6.5 2.8 5 3.5 3.8 5 3z"/></symbol>
+<symbol id="calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M7.5 3v5M16.5 3v5M4 10.5h16"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+<!-- placeholder clinic mark, used until the clinic uploads its logo -->
+<symbol id="leafmark" viewBox="0 0 50 48"><g fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"><path d="M25 45c0-12 0-22 0-34"/><path d="M25 26c-6-1-11-5-13-12 7 0 12 4 13 12zM25 20c6-1 11-5 13-12-7 0-12 4-13 12zM25 34c-7-1-12-5-14-11 7 0 13 4 14 11zM25 30c7-1 12-5 14-11-7 0-13 4-14 11z" fill="currentColor"/></g></symbol>
+<symbol id="cf" viewBox="0 0 24 24"><path d="M18.5 6.2A8.5 8.5 0 1 0 18.5 17.8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="18.6" cy="17.7" r="2.3" fill="currentColor"/></symbol>
+<!-- service drawings -->
+<symbol id="move" viewBox="0 0 64 64"><circle cx="34" cy="10" r="5"/><path d="M33 17l-6 15 9 7 -3 16M27 32l-9 4M33 22l11 6 8-5M36 39l12 6"/></symbol>
+<symbol id="spine" viewBox="0 0 64 64"><path d="M32 6c-4 6-4 10 0 14s4 8 0 12-4 8 0 12 4 8 0 14"/><path d="M22 12h20M20 22h24M21 32h22M20 42h24M22 52h20"/></symbol>
+<symbol id="hands" viewBox="0 0 64 64"><path d="M8 40c6-2 10-1 14 2l10 7c3 2 7 2 10 0l14-10M12 30c5-6 12-8 18-5l8 4M40 22c4-3 9-3 13 0l5 4M22 42l-6 12M50 39l4 13"/><circle cx="27" cy="13" r="4"/><circle cx="43" cy="11" r="4"/></symbol>
+<symbol id="clip" viewBox="0 0 64 64"><rect x="14" y="10" width="36" height="46" rx="3"/><path d="M24 10V7h16v3M22 24h20M22 33h20M22 42h12"/></symbol>
+<symbol id="repeat" viewBox="0 0 64 64"><path d="M50 26A20 20 0 0 0 14 22M14 38a20 20 0 0 0 36 4"/><path d="M14 12v10h10M50 52V42H40"/></symbol>
+<symbol id="family" viewBox="0 0 64 64"><circle cx="24" cy="15" r="8"/><path d="M8 48v-8c0-9 6-16 15-16 7 0 12 3 15 9M14 48V37M32 21c4-3 7-2 10 0"/><circle cx="46" cy="25" r="6.5"/><path d="M38 36c2-3 5-5 9-4 7 0 12 7 12 14v5M53 51v-9"/><circle cx="32" cy="39" r="6.5"/><path d="M19 58v-3c0-6 5-11 13-11s13 5 13 11v3m-20 0v-5m14 5v-5"/></symbol>
+</defs></svg>
+
+<div class="utility"><div class="wrap">
+  <span class="status" id="accepting"><i></i> Accepting new patients</span>
+  <div class="utility-right">
+    <a href="#visit"><svg class="i" aria-hidden="true"><use href="#pin"/></svg> <span data-f="city">Ottawa, ON</span></a>
+    <span class="divider"></span>
+    <a class="phone" data-f="phoneLink" href="tel:+16135550100"><svg class="i" aria-hidden="true"><use href="#phone"/></svg> <span data-f="phone">(613) 555-0100</span></a>
+    <span class="divider"></span>
+    <a class="staff" data-staff href="#"><svg class="i" aria-hidden="true"><use href="#lock"/></svg> Staff sign-in</a>
+  </div>
+</div></div>
+
+<header><div class="wrap head">
+  <a class="brand" href="#main" data-f="brandLabel" aria-label="Maple Grove Clinic home"><span class="mark" data-logo><svg aria-hidden="true"><use href="#leafmark"/></svg></span><span><span data-f="shortName">Maple Grove</span><small data-f="kind">Physio · Chiro · Massage</small></span></a>
+  <nav id="nav" aria-label="Main navigation"><a href="#services">Our services</a><a href="#team">Our team</a><a href="#guide">Patient guide</a><a href="#visit">Contact</a></nav>
+  <button class="btn head-book" data-book>Book a visit <svg class="i" aria-hidden="true"><use href="#arrow"/></svg></button>
+  <button class="menu" aria-controls="nav" aria-expanded="false" aria-label="Open menu"><span></span><span></span></button>
+</div></header>
+
+<main id="main">
+  <section class="hero">
+    <div class="herocopy">
+      <div class="heroinner">
+        <p class="label"><span class="rule"></span> <span data-f="heroLabel">Physiotherapy and rehab in Ottawa</span></p>
+        <h1><span data-f="heroLine1">Good care.</span><br><em data-f="heroLine2">Close to home.</em></h1>
+        <p class="intro" data-f="intro">Physiotherapy, chiropractic and massage therapy for you and your family, right here in downtown Ottawa.</p>
+        <div class="actions">
+          <button class="btn" data-book><svg class="i" aria-hidden="true"><use href="#calendar"/></svg> Book a visit</button>
+          <a class="textlink" href="#team">Meet our team <svg class="i" aria-hidden="true"><use href="#arrow"/></svg></a>
+        </div>
+        <p class="bookhint">Book in the ClinicFlow app in a few taps. No account or password needed.</p>
+      </div>
+      <svg class="botanical" aria-hidden="true" viewBox="0 0 225 270" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><defs><g id="leaf"><path d="M0 0Q-29-28-8-66C9-48 17-21 0 0Z"/><path d="M0 0Q-7-36-8-62M-2-8l-10-16M-4-18l-10-18M-6-29l-8-16M-7-39l-5-12M-1-9l6-20M-4-24l7-17M-6-35l5-13M-7-45l3-10"/></g></defs><path d="M186 276Q134 208 103 147T63 24M182 272Q121 191 99 143M156 229Q158 196 176 160M133 189Q94 181 64 165M116 159q2-24 13-57M95 122Q73 107 50 91M86 102q4-23 13-44M76 73Q57 61 43 47"/><use href="#leaf" transform="translate(65 36) rotate(-14) scale(.63)"/><use href="#leaf" transform="translate(74 65) rotate(-49) scale(.76)"/><use href="#leaf" transform="translate(83 92) rotate(26) scale(.79)"/><use href="#leaf" transform="translate(90 115) rotate(-53) scale(.9)"/><use href="#leaf" transform="translate(116 153) rotate(24) scale(.93)"/><use href="#leaf" transform="translate(131 187) rotate(-60) scale(1.1)"/><use href="#leaf" transform="translate(149 216) rotate(35) scale(1.02)"/><use href="#leaf" transform="translate(167 246) rotate(-57) scale(1.08)"/><use href="#leaf" transform="translate(171 244) rotate(52) scale(.87)"/></svg>
+    </div>
+    <div class="herophoto"><img src="img/hero.jpg" alt="A clinician and a patient talking at a desk" fetchpriority="high"></div>
+  </section>
+
+  <section class="services wrap" id="services">
+    <p class="label"><span class="rule"></span> Our services</p>
+    <div class="sectionhead"><h2>Care for every step.</h2><button class="textlink" id="all-services" aria-controls="cards" aria-expanded="false">View all services <svg class="i" aria-hidden="true"><use href="#arrow"/></svg></button></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="team" id="team">
+    <div class="wrap teamgrid">
+      <img loading="lazy" src="img/team.jpg" alt="A clinician holding a clipboard">
+      <div>
+        <p class="label"><span class="rule"></span> Our team</p>
+        <h2>A familiar face<br>at every visit.</h2>
+        <p class="bodycopy" data-f="teamCopy">Our physiotherapist, chiropractor and massage therapist work together, so the person who treats you knows your history and what you’re working toward.</p>
+        <button class="textlink" id="team-details">Meet the care team <svg class="i" aria-hidden="true"><use href="#arrow"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <section id="guide" class="wrap guide">
+    <div><p class="label"><span class="rule"></span> Patient guide</p><h2>Before your visit.</h2></div>
+    <div>
+      <details><summary>How do I book?</summary><p>Choose “Book a visit”. It opens the ClinicFlow app, or the App Store or Google Play if you don’t have it yet. Pick a service and a time, and confirm with a code we text you. No account or password needed.</p></details>
+      <details><summary>What should I bring?</summary><p>Your Ontario health card, a list of any medications, and comfortable clothes you can move in. If you have a referral or imaging reports, bring those too.</p></details>
+      <details><summary>Can I change or cancel my visit?</summary><p>Yes, in the app, free of charge until <span data-f="cancelHours">24</span> hours before your visit. Closer than that, please call us.</p></details>
+      <details><summary>How do I check in?</summary><p>Tap “I’m here” in the app when you arrive, or type the last four digits of your phone number on the tablet at the front desk.</p></details>
+      <details><summary>Is my information private?</summary><p>Your booking details are stored in Canada, and only our staff can see them. Your medical records stay with your clinician, not in the booking app.</p></details>
+    </div>
+  </section>
+</main>
+
+<footer id="visit">
+  <div class="wrap footgrid">
+    <div class="brand"><span class="mark" data-logo><svg aria-hidden="true"><use href="#leafmark"/></svg></span><span><span data-f="shortName">Maple Grove</span><small data-f="kind">Physio · Chiro · Massage</small></span></div>
+    <div><h3>Visit the clinic</h3><p><span data-f="street">75 Laurier Ave E</span><br><span data-f="cityLong">Ottawa, Ontario K1N 6N5</span><br><a data-f="phoneLink" href="tel:+16135550100"><span data-f="phone">(613) 555-0100</span></a></p></div>
+    <div><h3>Office hours</h3><p data-f="hours">Monday–Friday<br>8:00 am–6:00 pm<br>Saturday 9:00 am–1:00 pm</p></div>
+    <div class="staffcol"><h3>For staff</h3><p>Sign in to the clinic’s ClinicFlow staff website.</p><a data-staff href="#"><svg class="i" aria-hidden="true"><use href="#lock"/></svg> Staff sign-in <svg class="i" aria-hidden="true"><use href="#arrow"/></svg></a></div>
+  </div>
+  <div class="wrap footnote"><span>&copy; <span data-f="year"></span> <span data-f="fullName"></span></span><span class="cf"><svg aria-hidden="true"><use href="#cf"/></svg> Booking by ClinicFlow</span></div>
+</footer>
+
+<dialog id="dialog" aria-labelledby="dlg-title"><button class="close" aria-label="Close">×</button><div id="dialog-content"></div></dialog>
+
+<script>
+/* -----------------------------------------------------------------------------
+   Everything clinic-specific comes from the clinic's ClinicFlow setup: the clinic record,
+   its services and its clinicians, read from the database (all public). Which clinic is
+   chosen by ?c=<clinic id>, the same id as its booking link.
+   --------------------------------------------------------------------------- */
+const PROJECT = 'clinicflow-9e598';
+const DB = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
+const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function val(v) {
+  if (!v) return null;
+  if ('stringValue' in v) return v.stringValue;
+  if ('integerValue' in v) return Number(v.integerValue);
+  if ('doubleValue' in v) return v.doubleValue;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('arrayValue' in v) return (v.arrayValue.values || []).map(val);
+  if ('mapValue' in v) return fields(v.mapValue.fields);
+  return null;
+}
+function fields(f) { const o = {}; for (const [k, v] of Object.entries(f || {})) o[k] = val(v); return o; }
+async function getDoc(path) { const r = await fetch(`${DB}/${path}`); return r.ok ? fields((await r.json()).fields) : null; }
+async function getAll(path) {
+  const r = await fetch(`${DB}/${path}?pageSize=100`);
+  if (!r.ok) return [];
+  return ((await r.json()).documents || []).map((d) => ({ id: d.name.split('/').pop(), ...fields(d.fields) }));
+}
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_NAMES = { Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday', Sun: 'Sunday' };
+function clock(m) { const h = Math.floor(m / 60), mm = m % 60, ap = h < 12 ? 'am' : 'pm'; return `${((h + 11) % 12) + 1}:${String(mm).padStart(2, '0')} ${ap}`; }
+/* the clinic's hours: the earliest start and latest finish of anyone working each day,
+   with days that share hours grouped ("Monday–Friday") */
+function hoursFrom(clinicians) {
+  const byDay = DAYS.map((d) => {
+    const on = clinicians.filter((c) => (c.days || []).includes(d) && c.start != null && c.end != null);
+    return on.length ? [Math.min(...on.map((c) => c.start)), Math.max(...on.map((c) => c.end))] : null;
+  });
+  const out = [];
+  for (let i = 0; i < 7; i++) {
+    if (!byDay[i]) continue;
+    let j = i;
+    while (j + 1 < 7 && byDay[j + 1] && byDay[j + 1][0] === byDay[i][0] && byDay[j + 1][1] === byDay[i][1]) j++;
+    out.push(`${DAY_NAMES[DAYS[i]]}${j > i ? '–' + DAY_NAMES[DAYS[j]] : ''}<br>${clock(byDay[i][0])}–${clock(byDay[i][1])}`);
+    i = j;
+  }
+  return out.join('<br>') || 'Call us for our hours';
+}
+function artFor(name) {
+  const n = name.toLowerCase();
+  if (/chiro|spine|back/.test(n)) return 'spine';
+  if (/massage|rmt/.test(n)) return 'hands';
+  if (/follow|exercise|rehab|sport/.test(n)) return 'move';
+  if (/family|child|kid|pediatric/.test(n)) return 'family';
+  if (/check|repeat|review/.test(n)) return 'repeat';
+  return 'clip';
+}
+const THEMES = {
+  blue: {},
+  teal: { '--deep': '#1f5e63', '--deep-hover': '#174a4e', '--ink': '#1b3d40', '--accent': '#2f7479', '--tint': '#e3eff0', '--label': '#3f6a6d', '--rule': '#6f9a9c', '--dot': '#bfe0e1', '--card-1': '#e8f2f2', '--card-1-line': '#d3e5e6', '--card-1-ink': '#1f4f52' },
+  green: { '--deep': '#285e44', '--deep-hover': '#1d4a35', '--ink': '#213f34', '--accent': '#3f7458', '--tint': '#e6efe8', '--label': '#465e4b', '--rule': '#6f856b', '--dot': '#c9d8a8', '--card-1': '#eaf0e7', '--card-1-line': '#d9e2d6', '--card-1-ink': '#294836' },
+  plum: { '--deep': '#5e3a63', '--deep-hover': '#482c4c', '--ink': '#33213a', '--accent': '#7a4a80', '--tint': '#f1e9f1', '--label': '#6a4a6e', '--rule': '#9a7aa0', '--dot': '#e3c6e6', '--card-1': '#f3ecf3', '--card-1-line': '#e4d6e5', '--card-1-ink': '#4d2f52' },
+};
+function phoneText(p) { const d = String(p || '').replace(/\D/g, '').replace(/^1(?=\d{10}$)/, ''); return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : String(p || ''); }
+function shortCity(c) { return String(c || '').replace(/,\s*Ontario\b/i, ', ON').replace(/,\s*Quebec\b/i, ', QC'); }
+
+function unavailable(title, text) {
+  document.body.className = '';
+  document.body.innerHTML = `<div class="gone"><h1>${esc(title)}</h1><p>${esc(text)}</p></div>`;
+  document.title = title;
+}
+
+let CLINIC;
+(async () => {
+  const id = new URLSearchParams(location.search).get('c') || '';
+  const c = id && /^[\w-]+$/.test(id) ? await getDoc(`clinics/${id}`).catch(() => null) : null;
+  if (!c) return unavailable('Clinic not found', 'Check the link the clinic gave you, or search for the clinic in the ClinicFlow app.');
+  if (c.approval !== 'approved') return unavailable('Coming soon', `${c.name || 'This clinic'} is still setting up online booking. Call the clinic to book for now.`);
+  const [services, clinicians] = await Promise.all([getAll(`clinics/${id}/services`), getAll(`clinics/${id}/clinicians`)]);
+  const kinds = String(c.kind || '').split(',').map((k) => k.trim()).filter(Boolean);
+  const name = c.name || 'Clinic';
+  CLINIC = {
+    id,
+    shortName: name.replace(/\s+(clinic|centre|center|health)$/i, '') || name,
+    fullName: name,
+    kind: kinds.join(' · '),
+    logo: /^data:image\/(png|jpeg|webp|svg\+xml);base64,/.test(c.logo || '') ? c.logo : null,
+    accepting: c.accepting !== false,
+    city: shortCity(c.city), street: c.address || '', cityLong: c.city || '',
+    phone: phoneText(c.phone),
+    hours: hoursFrom(clinicians),
+    heroLabel: `${kinds[0] || 'Care'}${c.city ? ' in ' + String(c.city).split(',')[0] : ''}`,
+    heroLine1: 'Good care.', heroLine2: 'Close to home.',
+    intro: `${kinds.length ? kinds.map((k, i) => i ? k.charAt(0).toLowerCase() + k.slice(1) : k).join(', ').replace(/, ([^,]*)$/, ' and $1') : 'Care'} for you and your family${c.city ? ', right here in ' + String(c.city).split(',')[0] : ''}.`,
+    teamCopy: `Our ${clinicians.length === 1 ? 'clinician knows' : 'clinicians work together, so the person who treats you knows'} your history and what you’re working toward.`,
+    cancelHours: c.cancelWindowHours ?? (c.rules && c.rules.cancelWindowHours) ?? 24,
+    services: services.filter((s) => s.online !== false && (s.clinicianIds || []).length).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((s) => ({
+      id: s.id, name: s.name || '', minutes: s.minutes || 30, art: artFor(s.name || ''),
+      summary: s.who ? `For ${s.who.charAt(0).toLowerCase() + s.who.slice(1)}.` : `A ${s.minutes || 30}-minute visit.`,
+      detail: s.who ? `For ${s.who.charAt(0).toLowerCase() + s.who.slice(1)}.` : '',
+      examples: [],
+      with: (s.clinicianIds || []).map((cid) => (clinicians.find((x) => x.id === cid) || {}).name).filter(Boolean),
+    })),
+    team: clinicians.sort((a, b) => (a.addedAt ?? 0) - (b.addedAt ?? 0)).map((p) => ({ name: p.name || '', role: p.role || '' })),
+    brand: THEMES[c.brand] ? c.brand : 'blue',
+  };
+  start();
+})();
+
+function start() {
+/* where the buttons go */
+const PATIENT_APP = 'https://clinicflow-9e598.web.app';   // the patient app, on the web
+const STAFF_SITE = 'https://clinicflow-staff.web.app';    // the staff website's sign-in
+const APP_SCHEME = 'clinicflow://';                       // opens the installed patient app
+const STORES = {                                           // set once the apps are published
+  ios: null,       // e.g. https://apps.apple.com/ca/app/clinicflow/id…
+  android: null,   // e.g. https://play.google.com/store/apps/details?id=ca.clinicflow.patient
+};
+
+/* ---- fill the page from the clinic's details */
+document.title = CLINIC.fullName;
+Object.entries(THEMES[CLINIC.brand]).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
+document.querySelectorAll('[data-f]').forEach((el) => {
+  const k = el.dataset.f;
+  if (k === 'phoneLink') el.href = 'tel:+1' + CLINIC.phone.replace(/\D/g, '');
+  else if (k === 'brandLabel') el.setAttribute('aria-label', CLINIC.fullName + ' home');
+  else if (k === 'hours') el.innerHTML = CLINIC.hours;
+  else if (k === 'year') el.textContent = new Date().getFullYear();
+  else if (CLINIC[k] != null) el.textContent = CLINIC[k];
+});
+if (CLINIC.logo) document.querySelectorAll('[data-logo]').forEach((el) => { el.textContent = ''; const img = new Image(); img.src = CLINIC.logo; img.alt = ''; el.append(img); });
+document.getElementById('accepting').hidden = !CLINIC.accepting;
+document.querySelectorAll('[data-staff]').forEach((a) => a.href = STAFF_SITE);
+
+/* ---- "Book a visit": open the patient app at this clinic; if it isn't installed, the store.
+   Until the apps are in the stores, phones and computers use the patient app on the web. */
+function bookingUrl(serviceId) {
+  return `${PATIENT_APP}/c/${CLINIC.id}` + (serviceId ? `?service=${encodeURIComponent(serviceId)}` : '');
+}
+function book(serviceId) {
+  const web = bookingUrl(serviceId), ua = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  const store = ios ? STORES.ios : android ? STORES.android : null;
+  if (!store) { location.href = web; return; }
+  // try the installed app; if the page is still showing a moment later, it isn't installed
+  const leave = () => clearTimeout(fallback);
+  const fallback = setTimeout(() => { document.removeEventListener('visibilitychange', leave); location.href = store; }, 1500);
+  document.addEventListener('visibilitychange', leave, { once: true });
+  location.href = `${APP_SCHEME}c/${CLINIC.id}` + (serviceId ? `?service=${encodeURIComponent(serviceId)}` : '');
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-book]');
+  if (!b) return;
+  e.preventDefault();
+  book(b.dataset.book || null);
+});
+
+/* ---- services */
+const cards = document.querySelector('#cards'), dialog = document.querySelector('#dialog'), content = document.querySelector('#dialog-content');
+const arrow = '<svg class="i" aria-hidden="true"><use href="#arrow"/></svg>';
+let expanded = false;
+function renderCards() {
+  cards.innerHTML = CLINIC.services.slice(0, expanded ? CLINIC.services.length : 3).map((s, i) =>
+    `<button class="card" data-index="${i}" aria-label="About ${esc(s.name)}"><svg class="service-art" aria-hidden="true"><use href="#${s.art}"/></svg><span class="circle">${arrow}</span><h3>${esc(s.name)}</h3><p>${esc(s.summary)}</p><span class="len">${s.minutes} minutes</span></button>`).join('') || '<p>Services are being added. Call the clinic to book for now.</p>';
+}
+renderCards();
+const allServices = document.querySelector('#all-services');
+if (CLINIC.services.length <= 3) allServices.style.display = 'none';
+allServices.onclick = () => {
+  expanded = !expanded;
+  renderCards();
+  allServices.innerHTML = (expanded ? 'Show fewer services ' : 'View all services ') + arrow;
+  allServices.setAttribute('aria-expanded', String(expanded));
+};
+function showDialog(label, title, body) {
+  content.innerHTML = `<div class="dialog-label">${label}</div><h2 id="dlg-title">${title}</h2>${body}`;
+  if (!dialog.open) dialog.showModal();
+  dialog.scrollTop = 0;
+  document.querySelector('.close').focus();
+}
+document.querySelector('.close').onclick = () => dialog.close();
+dialog.addEventListener('click', (e) => {
+  const r = dialog.getBoundingClientRect();
+  if (e.target === dialog && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) dialog.close();
+});
+cards.addEventListener('click', (e) => {
+  const b = e.target.closest('.card'); if (!b) return;
+  const s = CLINIC.services[+b.dataset.index];
+  showDialog('Our services', esc(s.name), `${s.detail ? `<p>${esc(s.detail)}</p>` : ''}${s.with.length ? `<p>With ${esc(s.with.join(', '))}</p>` : ''}<p>${s.minutes} minutes</p><button class="btn" data-book="${esc(s.id)}">Book this visit ${arrow}</button>`);
+});
+document.querySelector('#team-details').onclick = () => showDialog('Our team', 'Meet your care team.',
+  `<p>Everyone at ${esc(CLINIC.fullName)} works from the same plan, so you never have to start your story over.</p>` +
+  CLINIC.team.map((p) => `<div class="person"><h3>${esc(p.name)}</h3><p>${esc(p.role)}</p></div>`).join('') +
+  `<button class="btn" data-book>Book a visit ${arrow}</button>`);
+
+/* ---- mobile menu */
+const menu = document.querySelector('.menu'), nav = document.querySelector('#nav');
+function toggleMenu(open) { menu.setAttribute('aria-expanded', String(open)); menu.setAttribute('aria-label', open ? 'Close menu' : 'Open menu'); nav.classList.toggle('open', open); }
+menu.onclick = () => toggleMenu(!nav.classList.contains('open'));
+nav.onclick = () => toggleMenu(false);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && nav.classList.contains('open')) { toggleMenu(false); menu.focus(); } });
+
+document.body.classList.remove('pending');
+}
+</script>
+</body>
+</html>

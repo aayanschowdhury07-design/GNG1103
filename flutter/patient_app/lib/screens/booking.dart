@@ -81,13 +81,15 @@ class BookServiceScreen extends StatelessWidget {
           if (!d.ready)
             _Empty(text: s.t(clinic.bookable ? 'noOnline' : 'notBookable', {'name': clinic.name}))
           else ...[
-            const SizedBox(height: 8),
-            Text(s.t('whoFor'), style: context.text.bodySmall),
-            UnderlineTabs<String>(
-              options: [('', s.t('me')), for (final f in b.family()) (f.name, f.name.split(' ').first), ('+', s.t('addSomeone'))],
-              selected: d.who,
-              onSelect: (v) => v == '+' ? Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyScreen(pickForBooking: true))) : d.pickWho(v),
-            ),
+            if (clinic.has('family')) ...[
+              const SizedBox(height: 8),
+              Text(s.t('whoFor'), style: context.text.bodySmall),
+              UnderlineTabs<String>(
+                options: [('', s.t('me')), for (final f in b.family()) (f.name, f.name.split(' ').first), ('+', s.t('addSomeone'))],
+                selected: d.who,
+                onSelect: (v) => v == '+' ? Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FamilyScreen(pickForBooking: true))) : d.pickWho(v),
+              ),
+            ],
             const SizedBox(height: 20),
             Text(s.t('step1'), style: context.text.bodySmall),
             Container(height: 1, color: context.colors.line, margin: const EdgeInsets.only(top: 8)),
@@ -328,6 +330,12 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 : null;
     if (err != null) return setState(() => _error = err);
     setState(() => _sending = true);
+    // already signed in with this number: it's verified, so no second code
+    if (isMyPhone(context, _phone.text)) {
+      await completeBooking(context, name: _name.text.trim(), phone: _phone.text.trim(), email: _email.text.trim(), forSomeoneElse: !_forMe, smsConsent: _sms);
+      if (mounted) setState(() => _sending = false);
+      return;
+    }
     try {
       await b.sendVerificationCode(_phone.text);
       if (!mounted) return;
@@ -339,7 +347,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       setState(() => _error = s.t('errLimit'));
     } catch (e) {
       debugPrint('sendVerificationCode failed: $e');
-      if (mounted) setState(() => _error = s.t('errSend'));
+      if (mounted) setState(() => _error = codeSendError(s, e));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -380,6 +388,39 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   }
 }
 
+/// Books the held time once the phone is verified, then shows the booked screen (or goes
+/// back to the times if the hold ran out or someone else got there first).
+Future<void> completeBooking(BuildContext context, {required String name, required String phone, required String email, required bool forSomeoneElse, required bool smsConsent}) async {
+  final s = context.s, b = context.backend, d = context.draft;
+  if (b.holdOf(BookingDraft.owner) == null) return _backToTimes(context);
+  final result = await b.book(BookingRequest(
+    clinicId: d.clinicId,
+    serviceId: d.serviceId,
+    clinicianId: d.heldClinicianId!,
+    date: d.date,
+    minute: d.minute!,
+    patientName: name,
+    phone: phone,
+    email: email,
+    owner: BookingDraft.owner,
+    bookedByGuardian: forSomeoneElse,
+  ));
+  if (!context.mounted) return;
+  switch (result.outcome) {
+    case BookingOutcome.booked:
+      d.finish(result.appointment!);
+      // saved before the booked screen, which says whether a confirmation text is coming
+      if (smsConsent && !b.smsConsent) await b.setSmsConsent(true);
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const BookedScreen()), (r) => r.isFirst);
+    case BookingOutcome.holdExpired:
+      _backToTimes(context);
+    case BookingOutcome.slotTaken:
+      d.setError(s.t('slotGone'));
+      Navigator.of(context).popUntil((r) => r.settings.name == _timeRoute || r.isFirst);
+  }
+}
+
 /// Step 4: the 6-digit code. Verifying the phone confirms the booking.
 class BookCodeScreen extends StatefulWidget {
   const BookCodeScreen({super.key, required this.name, required this.phone, required this.email, required this.forSomeoneElse, required this.smsConsent});
@@ -401,7 +442,7 @@ class _BookCodeScreenState extends State<BookCodeScreen> {
   }
 
   Future<void> _confirm() async {
-    final s = context.s, b = context.backend, d = context.draft;
+    final s = context.s, b = context.backend;
     if (_code.text.trim().length < 6) return setState(() => _error = s.t('errDigits'));
     setState(() => _busy = true);
     final ok = await b.verifyCode(widget.phone, _code.text);
@@ -412,32 +453,8 @@ class _BookCodeScreenState extends State<BookCodeScreen> {
         _busy = false;
       });
     }
-    if (b.holdOf(BookingDraft.owner) == null) return _backToTimes(context);
-    final result = await b.book(BookingRequest(
-      clinicId: d.clinicId,
-      serviceId: d.serviceId,
-      clinicianId: d.heldClinicianId!,
-      date: d.date,
-      minute: d.minute!,
-      patientName: widget.name,
-      phone: widget.phone,
-      email: widget.email,
-      owner: BookingDraft.owner,
-      bookedByGuardian: widget.forSomeoneElse,
-    ));
-    if (!mounted) return;
-    switch (result.outcome) {
-      case BookingOutcome.booked:
-        d.finish(result.appointment!);
-        if (widget.smsConsent && !b.smsConsent) await b.setSmsConsent(true);
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const BookedScreen()), (r) => r.isFirst);
-      case BookingOutcome.holdExpired:
-        _backToTimes(context);
-      case BookingOutcome.slotTaken:
-        d.setError(s.t('slotGone'));
-        Navigator.of(context).popUntil((r) => r.settings.name == _timeRoute || r.isFirst);
-    }
+    await completeBooking(context, name: widget.name, phone: widget.phone, email: widget.email, forSomeoneElse: widget.forSomeoneElse, smsConsent: widget.smsConsent);
+    if (mounted) setState(() => _busy = false);
   }
 
   @override
@@ -487,6 +504,8 @@ class _BookCodeScreenState extends State<BookCodeScreen> {
                 if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.t('newCode'))));
               } on RateLimitException {
                 setState(() => _error = s.t('errLimit'));
+              } catch (e) {
+                setState(() => _error = codeSendError(s, e));
               }
             },
             child: Text(s.t('resend')),
@@ -526,13 +545,13 @@ class BookedScreen extends StatelessWidget {
         const SizedBox(height: 8),
         Center(child: CircleAvatar(radius: 30, backgroundColor: c.goodSoft, child: Icon(Icons.check, color: c.good, size: 30))),
         const SizedBox(height: 12),
-        Text(s.t('bookedSub'), style: context.text.bodySmall, textAlign: TextAlign.center),
+        Text(s.t(context.backend.smsConsent ? 'bookedSub' : 'bookedSubNoSms'), style: context.text.bodySmall, textAlign: TextAlign.center),
         if (a != null)
           Section(child: BookingSummary(serviceId: a.serviceId, clinicianId: a.clinicianId, date: a.date, minute: a.minute, clinicId: a.clinicId, who: a.bookedByGuardian ? a.patientName : '')),
         Section(
           title: s.t('next'),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (a != null && !a.formsDone)
+            if (a != null && !a.formsDone && context.backend.clinic(a.clinicId).has('intakeForm'))
               Row(children: [
                 Expanded(child: Text(s.t('formNow'), style: context.text.bodyMedium)),
                 TextButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => IntakeScreen(appointmentId: a.id))), child: Text(s.t('fill'))),

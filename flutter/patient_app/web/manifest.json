@@ -1,11 +1,11 @@
 {
-    "name": "clinicflow_patient",
-    "short_name": "clinicflow_patient",
+    "name": "ClinicFlow",
+    "short_name": "ClinicFlow",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FAFAF8",
+    "theme_color": "#FAFAF8",
+    "description": "Book a visit at your clinic, get reminders, and check in from your phone. No account needed to book.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

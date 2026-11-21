@@ -4,6 +4,8 @@ import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n.dart';
+import '../portal_theme.dart';
 import '../ui.dart';
 import '../visit.dart';
 
@@ -80,31 +82,18 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
     final d = DateTime.parse(_date);
     final monday = d.subtract(Duration(days: d.weekday - 1));
     final title = switch (_view) {
-      CalView.day => longDay(_date, desk.today),
-      CalView.week => 'Week of ${shortDate(isoDate(monday))}',
-      CalView.month => '${const ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][d.month - 1]} ${d.year}',
+      CalView.day => longDay(_date, desk.today, lang: lang),
+      CalView.week => tr('Week of {date}', {'date': shortDate(isoDate(monday), lang: lang)}),
+      CalView.month => '${tr(const ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][d.month - 1])} ${d.year}',
     };
-    return PageFrame(
-      eyebrow: title,
-      title: 'Calendar',
-      actions: [
-        IconButton.outlined(tooltip: 'Previous', onPressed: () => _shift(-1), icon: const Icon(Icons.chevron_left)),
-        OutlinedButton(style: smallButton, onPressed: () => _shift(0), child: const Text('Today')),
-        IconButton.outlined(tooltip: 'Next', onPressed: () => _shift(1), icon: const Icon(Icons.chevron_right)),
-        SegmentedButton<CalView>(
-          showSelectedIcon: false,
-          segments: const [ButtonSegment(value: CalView.day, label: Text('Day')), ButtonSegment(value: CalView.week, label: Text('Week')), ButtonSegment(value: CalView.month, label: Text('Month'))],
-          selected: {_view},
-          onSelectionChanged: (v) => setState(() => _view = v.first),
-        ),
-        if (canBook) FilledButton(style: smallFilled, onPressed: () => _book(), child: const Text('+ Book')),
-      ],
-      children: [
-        if (_booking != null)
+    if (_booking != null) {
+      return PageFrame(
+        title: tr('New booking'),
+        eyebrow: tr('For a patient who calls or walks in.'),
+        children: [
           _BookingPanel(
             setup: setup,
             desk: desk,
@@ -115,15 +104,28 @@ class _CalendarPageState extends State<CalendarPage> {
               setState(() => _booking = null);
             },
           ),
+        ],
+      );
+    }
+    return PageFrame(
+      eyebrow: title,
+      title: tr('Calendar'),
+      actions: [
+        IconButton.outlined(tooltip: tr('Previous'), onPressed: () => _shift(-1), icon: const Icon(Icons.chevron_left)),
+        OutlinedButton(style: smallButton, onPressed: () => _shift(0), child: Text(tr('Today'))),
+        IconButton.outlined(tooltip: tr('Next'), onPressed: () => _shift(1), icon: const Icon(Icons.chevron_right)),
+        SegmentedButton<CalView>(
+          showSelectedIcon: false,
+          segments: [ButtonSegment(value: CalView.day, label: Text(tr('Day'))), ButtonSegment(value: CalView.week, label: Text(tr('Week'))), ButtonSegment(value: CalView.month, label: Text(tr('Month')))],
+          selected: {_view},
+          onSelectionChanged: (v) => setState(() => _view = v.first),
+        ),
+        if (canBook) FilledButton.icon(style: smallFilled, onPressed: () => _book(), icon: const Icon(Icons.add, size: 18), label: Text(tr('New booking'))),
+      ],
+      children: [
         if (_view == CalView.day) ...[
           const _Legend(),
-          Panel(padding: const EdgeInsets.all(12), child: _DayGrid(setup: setup, desk: desk, date: _date, onBook: canBook ? (c, m) => _book(clinicianId: c, minute: m) : null)),
-          Text(
-            _date.compareTo(desk.today) >= 0
-                ? 'Choosing a time holds it while that person finishes (5 minutes online, 2 minutes at the front desk). Only one booking can exist per clinician and start time.'
-                : 'A past day: what was recorded, as it happened.',
-            style: t.bodySmall,
-          ),
+          Panel(boxed: true, padding: const EdgeInsets.all(12), child: _DayGrid(setup: setup, desk: desk, date: _date, onBook: canBook ? (c, m) => _book(clinicianId: c, minute: m) : null)),
         ],
         if (_view == CalView.week) Panel(child: _Week(setup: setup, desk: desk, monday: monday, onOpen: _openDay)),
         if (_view == CalView.month) Panel(child: _Month(setup: setup, desk: desk, month: d, onOpen: _openDay)),
@@ -136,11 +138,11 @@ class _Legend extends StatelessWidget {
   const _Legend();
   @override
   Widget build(BuildContext context) => Wrap(spacing: 14, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        for (final s in const [ApptStatus.booked, ApptStatus.confirmed, ApptStatus.late, ApptStatus.checkedIn, ApptStatus.waiting, ApptStatus.inVisit, ApptStatus.complete]) StatusMark(s),
-        const Pill('Freed slot', tone: Tone.good),
-        const Pill('Held while someone books', tone: Tone.warn),
-        const Pill('Unavailable'),
-        Text('Outlined: not here yet. Filled: arrived.', style: Theme.of(context).textTheme.bodySmall),
+        for (final s in const [ApptStatus.booked, ApptStatus.confirmed, ApptStatus.late, ApptStatus.checkedIn, ApptStatus.waiting, ApptStatus.inVisit, ApptStatus.complete]) StatusMark(s, label: tr(s.label)),
+        Pill(tr('Freed slot'), tone: Tone.good),
+        Pill(tr('Held while someone books'), tone: Tone.warn),
+        Pill(tr('Unavailable')),
+        Text(tr('Outlined: not here yet. Filled: arrived.'),style: Theme.of(context).textTheme.bodySmall),
       ]);
 }
 
@@ -157,7 +159,7 @@ class _DayGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = CfColors.of(context), t = Theme.of(context).textTheme;
     final clins = visibleClinicians(setup, desk);
-    if (clins.isEmpty) return Text('No clinicians yet. Add them under Services & clinicians.', style: t.bodySmall);
+    if (clins.isEmpty) return Text(tr('No clinicians yet. Add them under Services & clinicians.'), style: t.bodySmall);
     final ahead = date.compareTo(desk.today) >= 0;
     return LayoutBuilder(builder: (context, box) {
       final colWidth = ((box.maxWidth - 80) / clins.length).clamp(150.0, 320.0);
@@ -186,7 +188,7 @@ class _DayGrid extends StatelessWidget {
                 child: Row(children: [
                   SizedBox(
                     width: 80,
-                    child: Text(formatTime(m), style: t.bodySmall?.copyWith(color: desk.clock.passed(date, m + 30) ? c.lineStrong : c.muted, fontFeatures: const [FontFeature.tabularFigures()])),
+                    child: Text(formatTime(m, lang: lang), style: t.bodySmall?.copyWith(color: desk.clock.passed(date, m + 30) ? c.lineStrong : c.muted, fontFeatures: const [FontFeature.tabularFigures()])),
                   ),
                   for (final cl in clins) SizedBox(width: colWidth, height: 52, child: Padding(padding: const EdgeInsets.all(3), child: _cell(context, cl, m, ahead))),
                 ]),
@@ -204,7 +206,7 @@ class _DayGrid extends StatelessWidget {
       final s = shownStatus(desk, a), color = c.statusColor(s);
       return Semantics(
         button: true,
-        label: '${a.patientName}, ${formatTime(m)}, ${s.label}',
+        label: '${a.patientName}, ${formatTime(m, lang: lang)}, ${tr(s.label)}',
         excludeSemantics: true,
         child: InkWell(
           borderRadius: BorderRadius.circular(6),
@@ -218,25 +220,25 @@ class _DayGrid extends StatelessWidget {
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
               Text(a.patientName, style: t.labelLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text('${s.label} · ${setup.services.where((x) => x.id == a.serviceId).firstOrNull?.minutes ?? 30} min', style: t.labelMedium?.copyWith(color: color), maxLines: 1),
+              Text(tr('{status} · {n} min', {'status': tr(s.label), 'n': setup.services.where((x) => x.id == a.serviceId).firstOrNull?.minutes ?? 30}),style: t.labelMedium?.copyWith(color: color), maxLines: 1),
             ]),
           ),
         ),
       );
     }
     final off = desk.unavailable(cl, m, date);
-    if (off != null) return _flat(context, off, c.surface2, c.muted);
+    if (off != null) return _flat(context, tr(off), c.surface2, c.muted);
     if (ahead) {
       final held = desk.heldBy(cl.id, date, m);
-      if (held != null) return _flat(context, held == 'desk' ? 'Held · front desk' : 'Held · patient online', c.warnSoft, c.warn, icon: Icons.lock_outline);
+      if (held != null) return _flat(context, held == 'desk' ? tr('Held · front desk') : tr('Held · patient online'), c.warnSoft, c.warn, icon: Icons.lock_outline);
       final f = desk.freed.where((f) => f.clinicianId == cl.id && f.date == date && f.minute == m).firstOrNull;
-      if (f != null && desk.me.runsDay) return _flat(context, f.offeredTo != null ? 'Freed · offered' : 'Freed · open', c.goodSoft, c.good);
+      if (f != null && desk.me.runsDay) return _flat(context, f.offeredTo != null ? tr('Freed · offered') : tr('Freed · open'), c.goodSoft, c.good);
       // a time that has already started can't be booked
       if (desk.clock.passed(date, m)) return const SizedBox.shrink();
       if (onBook != null && !desk.taken(cl.id, date, m)) {
         return Semantics(
           button: true,
-          label: 'Book ${cl.short} at ${formatTime(m)}',
+          label: tr('Book {clinician} at {time}', {'clinician': cl.short, 'time': formatTime(m, lang: lang)}),
           excludeSemantics: true,
           child: InkWell(
             borderRadius: BorderRadius.circular(6),
@@ -274,16 +276,16 @@ class _Week extends StatelessWidget {
     final c = CfColors.of(context), t = Theme.of(context).textTheme;
     final days = [for (var i = 0; i < 6; i++) isoDate(monday.add(Duration(days: i)))];
     return SimpleTable(
-      columns: ['Clinician', for (final d in days) shortDate(d).split(' ').first + (d == desk.today ? ' (today)' : '')],
+      columns: [tr('Clinician'), for (final d in days) shortDate(d, lang: lang).split(' ').first + (d == desk.today ? tr(' (today)') : '')],
       rows: [
-        [const SizedBox.shrink(), for (final d in days) TextButton(onPressed: () => onOpen(d), child: Text(shortDate(d).substring(4)))],
+        [const SizedBox.shrink(), for (final d in days) TextButton(onPressed: () => onOpen(d), child: Text(shortDate(d, lang: lang).substring(shortDate(d, lang: lang).indexOf(' ') + 1)))],
         for (final cl in visibleClinicians(setup, desk))
           [
             Text(cl.short.isEmpty ? cl.name : cl.short, style: t.labelLarge),
             for (final d in days)
               Builder(builder: (context) {
                 final cap = desk.capacity(cl, d), n = desk.booked(cl, d);
-                if (cap == 0 && n == 0) return Text('Not in', style: t.bodySmall);
+                if (cap == 0 && n == 0) return Text(tr('Not in'), style: t.bodySmall);
                 return SizedBox(
                   width: 90,
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -313,7 +315,7 @@ class _Month extends StatelessWidget {
     final start = first.subtract(Duration(days: first.weekday - 1));
     final clins = visibleClinicians(setup, desk);
     return Column(children: [
-      Row(children: [for (final d in const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) Expanded(child: Padding(padding: const EdgeInsets.all(6), child: Text(d, style: t.labelMedium?.copyWith(color: c.muted))))]),
+      Row(children: [for (final d in const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) Expanded(child: Padding(padding: const EdgeInsets.all(6), child: Text(tr(d), style: t.labelMedium?.copyWith(color: c.muted))))]),
       for (var w = 0; w < 6; w++)
         Row(children: [
           for (var i = 0; i < 7; i++)
@@ -339,7 +341,7 @@ class _Month extends StatelessWidget {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text('${day.day}', style: t.labelLarge?.copyWith(color: inMonth ? c.fg : c.lineStrong)),
                         const Spacer(),
-                        Text(!open && n == 0 ? 'Closed' : '$n booked', style: t.bodySmall?.copyWith(color: inMonth ? c.muted : c.lineStrong)),
+                        Text(!open && n == 0 ? tr('Closed') : tr('{n} booked', {'n': n}),style: t.bodySmall?.copyWith(color: inMonth ? c.muted : c.lineStrong)),
                       ]),
                     ),
                   ),
@@ -358,6 +360,9 @@ class _Booking {
   _Booking({this.clinicianId, required this.date});
   String? clinicianId, serviceId, error;
   String date;
+
+  /// Which step is showing: 0 patient, 1 service, 2 day and time, 3 check and book.
+  int step = 0;
   int? minute;
   DateTime? heldUntil;
   bool busy = false;
@@ -373,7 +378,7 @@ class _Booking {
       minute = m;
       heldUntil = DateTime.now().add(const Duration(minutes: 2));
     } else {
-      error = '${formatTime(m)} is being booked online by a patient right now. Pick another time or wait for their hold to run out.';
+      error = tr('{time} is being booked online by a patient right now. Pick another time or wait for their hold to run out.', {'time': formatTime(m, lang: lang)});
     }
     changed();
   }
@@ -427,7 +432,7 @@ class _HoldCountdownState extends State<_HoldCountdown> {
       const SizedBox(width: 6),
       Flexible(
         child: Text(
-          '${formatTime(widget.minute)} is held for you for ${s.inMinutes}:${(s.inSeconds % 60).toString().padLeft(2, '0')}. Nobody can book it online meanwhile.',
+          tr('{time} is held for you for {left}. Nobody can book it online meanwhile.', {'time': formatTime(widget.minute, lang: lang), 'left': '${s.inMinutes}:${(s.inSeconds % 60).toString().padLeft(2, '0')}'}),
           style: Theme.of(context).textTheme.bodySmall?.copyWith(color: c.warn),
         ),
       ),
@@ -435,6 +440,8 @@ class _HoldCountdownState extends State<_HoldCountdown> {
   }
 }
 
+/// New booking, in four steps: the patient, the service, the day and time, then a check.
+/// The time is held (2 minutes) as soon as it's picked, the same hold patients get online.
 class _BookingPanel extends StatefulWidget {
   const _BookingPanel({required this.setup, required this.desk, required this.booking, required this.onChanged, required this.onClose});
   final ClinicSetup setup;
@@ -446,44 +453,101 @@ class _BookingPanel extends StatefulWidget {
 }
 
 class _BookingPanelState extends State<_BookingPanel> {
-  final _name = TextEditingController(), _phone = TextEditingController();
+  final _name = TextEditingController(), _phone = TextEditingController(), _find = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    for (final c in [_name, _phone, _find]) {
+      c.addListener(() => setState(() {}));
+    }
+  }
 
   @override
   void dispose() {
     _name.dispose();
     _phone.dispose();
+    _find.dispose();
     super.dispose();
+  }
+
+  String get _digits => _phone.text.replaceAll(RegExp(r'\D'), '');
+
+  /// People the front desk booked before, newest first, one per phone number.
+  List<(String, String)> get _known {
+    final seen = <String>{}, out = <(String, String)>[];
+    final all = [...widget.desk.appointments]..sort((a, b) => b.date == a.date ? b.minute - a.minute : b.date.compareTo(a.date));
+    for (final a in all) {
+      final ph = (a.phone ?? '').replaceAll(RegExp(r'\D'), '');
+      if (ph.length < 10 || a.patientName.trim().isEmpty || !seen.add(ph)) continue;
+      out.add((a.patientName.trim(), ph));
+    }
+    return out;
+  }
+
+  String _fmtPhone(String d) => d.length == 10 ? '(${d.substring(0, 3)}) ${d.substring(3, 6)}-${d.substring(6)}' : d;
+
+  /// Why the current step can't go on yet, or null when it can.
+  String? _blocked(_Booking b) => switch (b.step) {
+        0 => _name.text.trim().isEmpty
+            ? tr('Enter the patient’s name.')
+            : _digits.length < 10
+                ? tr('Enter a 10-digit mobile number, so they get the confirmation and reminders.')
+                : null,
+        1 => b.serviceId == null ? tr('Choose a service.') : null,
+        2 => b.clinicianId == null || b.minute == null ? tr('Choose a time.') : null,
+        _ => null,
+      };
+
+  void _next() {
+    final b = widget.booking;
+    b.error = _blocked(b);
+    if (b.error == null) {
+      if (b.step < 3) {
+        b.step++;
+      } else {
+        _confirm();
+        return;
+      }
+    }
+    widget.onChanged();
+  }
+
+  void _back() {
+    final b = widget.booking;
+    b.error = null;
+    b.step--;
+    widget.onChanged();
   }
 
   Future<void> _confirm() async {
     final b = widget.booking, d = widget.desk;
-    final digits = _phone.text.replaceAll(RegExp(r'\D'), '');
-    b.error = _name.text.trim().isEmpty
-        ? 'Enter the patient’s name.'
-        : digits.length < 10
-            ? 'Enter a 10-digit mobile number, so they get the confirmation and reminders.'
-            : b.serviceId == null || b.clinicianId == null || b.minute == null
-                ? 'Choose a service, a clinician and a time.'
-                : null;
-    if (b.error != null) return widget.onChanged();
+    if (b.serviceId == null || b.clinicianId == null || b.minute == null) {
+      b
+        ..error = tr('Choose a service, a clinician and a time.')
+        ..step = b.serviceId == null ? 1 : 2;
+      return widget.onChanged();
+    }
     setState(() => b.busy = true);
     try {
-      final outcome = await d.book(name: _name.text, phone: digits, serviceId: b.serviceId!, clinicianId: b.clinicianId!, date: b.date, minute: b.minute!);
+      final outcome = await d.book(name: _name.text, phone: _digits, serviceId: b.serviceId!, clinicianId: b.clinicianId!, date: b.date, minute: b.minute!);
       if (!mounted) return;
       switch (outcome) {
         case BookingOutcome.booked:
-          say(context, 'Booked ${_name.text.trim()} for ${dayLabel(b.date, d.today, midSentence: true)} at ${formatTime(b.minute!)} with ${clinicianShort(widget.setup, b.clinicianId!)}. Confirmation text queued.');
+          say(context, tr('Booked {name} for {day} at {time} with {clinician}. Confirmation text queued.', {'name': _name.text.trim(), 'day': dayLabel(b.date, d.today, lang: lang, midSentence: true), 'time': formatTime(b.minute!, lang: lang), 'clinician': clinicianShort(widget.setup, b.clinicianId!)}));
           b.minute = null;
           widget.onClose();
           return;
         case BookingOutcome.slotTaken:
-          b.error = 'That time was taken a moment ago. Pick another time.';
+          b.error = tr('That time was taken a moment ago. Pick another time.');
         case BookingOutcome.holdExpired:
-          b.error = 'Your hold on ${formatTime(b.minute!)} ran out. Pick the time again.';
+          b.error = tr('Your hold on {time} ran out. Pick the time again.', {'time': formatTime(b.minute!, lang: lang)});
       }
-      b.minute = null;
+      b
+        ..minute = null
+        ..step = 2;
     } catch (e) {
-      b.error = 'Couldn’t book: $e';
+      b.error = tr('Couldn’t book: {error}', {'error': e});
     } finally {
       b.busy = false;
       widget.onChanged();
@@ -505,71 +569,236 @@ class _BookingPanelState extends State<_BookingPanel> {
         : slotMinutes
             .where((m) => m == b.minute || (!d.clock.passed(b.date, m) && !d.taken(cl.id, b.date, m) && d.unavailable(cl, m, b.date) == null && d.heldBy(cl.id, b.date, m) == null))
             .toList();
-    return Panel(
-      title: 'New booking (front desk)',
-      trailing: TextButton(onPressed: widget.onClose, child: const Text('Close')),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Wrap(spacing: 12, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.end, children: [
-          SizedBox(width: 220, child: TextField(controller: _name, autofocus: true, decoration: const InputDecoration(labelText: 'Patient name'))),
-          SizedBox(width: 180, child: TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile number'))),
-          SizedBox(
-            width: 260,
-            child: DropdownButtonFormField<String>(
-              key: ValueKey('svc${b.serviceId}'),
-              initialValue: b.serviceId,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Service'),
-              items: [for (final x in services) DropdownMenuItem(value: x.id, child: Text('${x.name} · ${x.minutes} min', overflow: TextOverflow.ellipsis))],
-              onChanged: (v) async {
-                await b.release(d);
-                b.serviceId = v;
+    String clinName(String id) => s.clinicians.where((x) => x.id == id).map((x) => x.short.isEmpty ? x.name : x.short).firstOrNull ?? '';
+
+    final steps = [tr('Patient'), tr('Service'), tr('Date & time'), tr('Confirm')];
+    final stepper = LayoutBuilder(
+      builder: (context, box) => Container(
+        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.line))),
+        child: Row(children: [
+          for (var i = 0; i < steps.length; i++)
+            Expanded(
+              child: Semantics(
+                selected: i == b.step,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(border: Border(bottom: BorderSide(color: i == b.step ? Portal.navy : Colors.transparent, width: 2))),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: i == b.step ? Portal.navy : i < b.step ? c.goodSoft : c.surface2),
+                      child: i < b.step
+                          ? Icon(Icons.check, size: 14, color: c.good)
+                          : Text('${i + 1}', style: t.labelMedium?.copyWith(color: i == b.step ? Colors.white : c.muted, fontWeight: FontWeight.w600)),
+                    ),
+                    if (box.maxWidth > 520) ...[
+                      const SizedBox(width: 10),
+                      Flexible(child: Text(steps[i], overflow: TextOverflow.ellipsis, style: t.bodyMedium?.copyWith(color: i == b.step ? c.fg : c.muted, fontWeight: i == b.step ? FontWeight.w600 : FontWeight.w500))),
+                    ],
+                  ]),
+                ),
+              ),
+            ),
+        ]),
+      ),
+    );
+
+    Widget pick({required bool on, required VoidCallback onTap, required Widget child}) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Material(
+            color: on ? c.accentSoft : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: on ? Portal.navy : c.line, width: on ? 1.5 : 1)),
+            child: InkWell(borderRadius: BorderRadius.circular(8), onTap: onTap, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), child: child)),
+          ),
+        );
+
+    Widget body;
+    switch (b.step) {
+      case 0:
+        final q = _find.text.trim().toLowerCase(), qd = q.replaceAll(RegExp(r'\D'), '');
+        final known = _known.where((p) => q.isEmpty || p.$1.toLowerCase().contains(q) || (qd.isNotEmpty && p.$2.contains(qd))).take(6).toList();
+        final findCol = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(tr('Find a patient'), style: t.labelLarge),
+          const SizedBox(height: 8),
+          TextField(controller: _find, decoration: InputDecoration(hintText: tr('Name or phone number'), prefixIcon: const Icon(Icons.search, size: 20))),
+          const SizedBox(height: 12),
+          for (final p in known)
+            pick(
+              on: _digits == p.$2,
+              onTap: () {
+                _name.text = p.$1;
+                _phone.text = _fmtPhone(p.$2);
                 b.error = null;
                 widget.onChanged();
               },
+              child: Row(children: [
+                Icon(Icons.person_outline, size: 20, color: c.accent),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(p.$1, style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+                    Text(_fmtPhone(p.$2), style: t.bodySmall),
+                  ]),
+                ),
+              ]),
             ),
+          if (known.isEmpty) Text(q.isEmpty ? tr('Patients the front desk booked before show here.') : tr('Nobody matches. Add them as someone new.'), style: t.bodySmall),
+        ]);
+        final newCol = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(tr('Someone new?'), style: t.titleMedium?.copyWith(fontSize: 16)),
+          const SizedBox(height: 14),
+          TextField(controller: _name, autofocus: true, decoration: InputDecoration(labelText: tr('Full name'))),
+          const SizedBox(height: 14),
+          TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('Mobile number'))),
+          const SizedBox(height: 6),
+          Text(tr('They’ll get a text to confirm the visit.'), style: t.bodySmall),
+        ]);
+        body = Columns(children: [findCol, newCol]);
+      case 1:
+        body = ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            for (final x in services)
+              pick(
+                on: x.id == b.serviceId,
+                onTap: () async {
+                  if (x.id == b.serviceId) return;
+                  await b.release(d);
+                  b
+                    ..serviceId = x.id
+                    ..error = null;
+                  widget.onChanged();
+                },
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(x.name, style: t.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(tr('{n} minutes · {who}', {'n': x.minutes, 'who': x.clinicianIds.map(clinName).where((n) => n.isNotEmpty).join(', ')}), style: t.bodySmall),
+                ]),
+              ),
+            if (services.isEmpty) Text(tr('No service has a clinician yet. Assign clinicians under Services & clinicians.'), style: t.bodySmall?.copyWith(color: c.warn)),
+          ]),
+        );
+      case 2:
+        final days = [for (var i = 0; i < 14; i++) isoDate(DateTime.parse(d.today).add(Duration(days: i)))];
+        if (!days.contains(b.date)) days.add(b.date);
+        final left = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          DropdownButtonFormField<String>(
+            key: ValueKey('day${b.date}'),
+            initialValue: b.date,
+            isExpanded: true,
+            decoration: InputDecoration(labelText: tr('Day')),
+            items: [for (final x in days) DropdownMenuItem(value: x, child: Text(longDay(x, d.today, lang: lang)))],
+            onChanged: (v) async {
+              if (v == null || v == b.date) return;
+              await b.release(d);
+              b
+                ..date = v
+                ..error = null;
+              widget.onChanged();
+            },
           ),
-          SizedBox(
-            width: 180,
-            child: DropdownButtonFormField<String>(
-              key: ValueKey('cl${b.clinicianId}${b.serviceId}'),
-              initialValue: b.clinicianId,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Clinician'),
-              items: [for (final x in clins) DropdownMenuItem(value: x.id, child: Text(x.short.isEmpty ? x.name : x.short))],
-              onChanged: (v) => b.pick(d, v!, null, widget.onChanged),
-            ),
+          const SizedBox(height: 14),
+          DropdownButtonFormField<String>(
+            key: ValueKey('cl${b.clinicianId}${b.serviceId}'),
+            initialValue: b.clinicianId,
+            isExpanded: true,
+            decoration: InputDecoration(labelText: tr('Clinician')),
+            items: [for (final x in clins) DropdownMenuItem(value: x.id, child: Text(x.name))],
+            onChanged: (v) => b.pick(d, v!, null, widget.onChanged),
           ),
-          SizedBox(
-            width: 160,
-            child: DropdownButtonFormField<int>(
-              key: ValueKey('t${b.clinicianId}${b.date}${b.minute}${free.length}'),
-              initialValue: b.minute,
-              isExpanded: true,
-              decoration: InputDecoration(labelText: 'Time, ${dayLabel(b.date, d.today, midSentence: true)}'),
-              items: [for (final m in free) DropdownMenuItem(value: m, child: Text(formatTime(m)))],
-              onChanged: (v) => b.pick(d, b.clinicianId!, v, widget.onChanged),
-            ),
-          ),
-          FilledButton(onPressed: b.busy ? null : _confirm, child: const Text('Book')),
-        ]),
-        const SizedBox(height: 10),
-        if (b.minute != null && b.heldUntil != null)
-          _HoldCountdown(
+        ]);
+        final right = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(tr('Open times'), style: t.labelLarge),
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final m in free)
+              SizedBox(
+                width: 104,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(96, 44),
+                    padding: EdgeInsets.zero,
+                    backgroundColor: m == b.minute ? Portal.navy : Colors.white,
+                    foregroundColor: m == b.minute ? Colors.white : c.fg,
+                    side: BorderSide(color: m == b.minute ? Portal.navy : c.line),
+                  ),
+                  onPressed: () => b.pick(d, b.clinicianId!, m, widget.onChanged),
+                  child: Text(formatTime(m, lang: lang), style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()])),
+                ),
+              ),
+          ]),
+          const SizedBox(height: 10),
+          if (cl != null && free.isEmpty) Text(tr('No open times with {clinician} that day. Try another day.', {'clinician': cl.name}), style: t.bodySmall),
+          if (free.isNotEmpty) Text(tr('The time is held for you for 2 minutes while you finish.'), style: t.bodySmall),
+        ]);
+        body = Columns(flex: const [2, 3], children: [left, right]);
+      default:
+        final rows = [
+          (tr('Patient'), '${_name.text.trim()} · ${_fmtPhone(_digits)}'),
+          (tr('Service'), svc == null ? '—' : '${svc.name}, ${svc.minutes} min'),
+          (tr('With'), cl?.name ?? '—'),
+          (tr('When'), b.minute == null ? '—' : '${longDay(b.date, d.today, lang: lang)} · ${formatTime(b.minute!, lang: lang)}'),
+        ];
+        body = ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(tr('Check the booking'), style: t.titleMedium),
+            const SizedBox(height: 14),
+            for (final (k, v) in rows)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  SizedBox(width: 120, child: Text(k, style: t.bodyMedium?.copyWith(color: c.muted))),
+                  Expanded(child: Text(v, style: t.bodyMedium?.copyWith(color: c.fg, fontWeight: k == tr('Patient') ? FontWeight.w600 : null))),
+                ]),
+              ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Icon(Icons.sms_outlined, size: 18, color: c.accent),
+              const SizedBox(width: 8),
+              Flexible(child: Text(tr('A confirmation text goes to the patient when you book.'), style: t.bodySmall)),
+            ]),
+          ]),
+        );
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      stepper,
+      const SizedBox(height: 28),
+      body,
+      const SizedBox(height: 16),
+      if (b.minute != null && b.heldUntil != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _HoldCountdown(
             key: ValueKey(b.heldUntil),
             minute: b.minute!,
             until: b.heldUntil!,
             onExpired: () {
               b.minute = null;
-              b.error = 'Your 2-minute hold ran out. Pick the time again.';
+              b.error = tr('Your 2-minute hold ran out. Pick the time again.');
+              if (b.step == 3) b.step = 2;
               widget.onChanged();
             },
           ),
-        if (b.error != null) Text(b.error!, style: t.bodyMedium?.copyWith(color: c.crit, fontWeight: FontWeight.w500)),
-        if (cl != null)
-          Text('${free.where((m) => m != b.minute).length} open times with ${cl.short.isEmpty ? cl.name : cl.short} ${b.date == d.today ? 'today' : 'on ${shortDate(b.date)}'}. Change the day with the calendar’s arrows.',
-              style: t.bodySmall),
-        if (services.isEmpty) Text('No service has a clinician yet. Assign clinicians under Services & clinicians.', style: t.bodySmall?.copyWith(color: c.warn)),
-      ]),
-    );
+        ),
+      if (b.error != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(b.error!, style: t.bodyMedium?.copyWith(color: c.crit, fontWeight: FontWeight.w500))),
+      const SizedBox(height: 8),
+      Container(
+        padding: const EdgeInsets.only(top: 16),
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: c.line))),
+        child: Row(children: [
+          b.step == 0 ? OutlinedButton(onPressed: widget.onClose, child: Text(tr('Cancel'))) : OutlinedButton(onPressed: b.busy ? null : _back, child: Text(tr('Back'))),
+          const Spacer(),
+          FilledButton.icon(
+            onPressed: b.busy ? null : _next,
+            iconAlignment: IconAlignment.end,
+            icon: Icon(b.step == 3 ? Icons.check : Icons.arrow_forward, size: 18),
+            label: Text(b.step == 3 ? tr('Book the visit') : tr('Next step')),
+          ),
+        ]),
+      ),
+    ]);
   }
 }

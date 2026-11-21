@@ -1,12 +1,11 @@
 {
-    "name": "clinicflow_admin",
-    "short_name": "clinicflow_admin",
+    "name": "ClinicFlow for clinics",
+    "short_name": "ClinicFlow Staff",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#FAFAF8",
+    "theme_color": "#FAFAF8",
+    "description": "ClinicFlow for clinic staff: schedule, front-desk queue, waitlist and clinic setup.",
     "prefer_related_applications": false,
     "icons": [
         {

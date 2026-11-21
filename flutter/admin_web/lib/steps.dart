@@ -5,6 +5,11 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import 'l10n.dart';
+import 'logo_picker.dart';
+import 'portal_theme.dart';
+import 'ui.dart' show say;
+
 /// Shows the current setup step. Each step saves its own data and then calls completeStep.
 class SetupStep extends StatelessWidget {
   const SetupStep({super.key, required this.setup, required this.step});
@@ -59,7 +64,7 @@ class _StepFrameState extends State<StepFrame> {
         await widget.setup.completeStep(widget.step);
       }
     } catch (e) {
-      setState(() => _error = 'Couldn’t save: $e');
+      setState(() => _error = tr('Couldn’t save: {e}', {'e': e}));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -76,8 +81,8 @@ class _StepFrameState extends State<StepFrame> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                Text('Step ${widget.step} of ${setupSteps.length}', style: t.bodySmall),
-                Semantics(header: true, child: Text(setupSteps[widget.step - 1], style: t.headlineMedium)),
+                Text(tr('Step {n} of {total}', {'n': widget.step, 'total': setupSteps.length}), style: t.bodySmall),
+                Semantics(header: true, child: Text(tr(setupSteps[widget.step - 1]), style: t.headlineMedium)),
                 const SizedBox(height: 6),
                 Text(widget.intro, style: t.bodyMedium?.copyWith(color: c.muted)),
                 const SizedBox(height: 24),
@@ -94,11 +99,11 @@ class _StepFrameState extends State<StepFrame> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
             child: Row(children: [
-              if (widget.step > 1) TextButton(onPressed: () => widget.setup.goToStep(widget.step - 1), child: const Text('Back')),
+              if (widget.step > 1) TextButton(onPressed: () => widget.setup.goToStep(widget.step - 1), child: Text(tr('Back'))),
               const SizedBox(width: 12),
               if (_error != null) Expanded(child: Text(_error!, style: t.bodyMedium?.copyWith(color: c.crit, fontWeight: FontWeight.w500))) else const Spacer(),
               const SizedBox(width: 12),
-              FilledButton(onPressed: _busy ? null : _next, child: Text(widget.nextLabel ?? (last ? 'Finish setup' : 'Save and continue'))),
+              FilledButton(onPressed: _busy ? null : _next, child: Text(widget.nextLabel ?? (last ? tr('Finish setup') : tr('Save and continue')))),
             ]),
           ),
         ),
@@ -130,7 +135,7 @@ class Group extends StatelessWidget {
   }
 }
 
-String hhmm(int m) => formatTime(m);
+String hhmm(int m) => formatTime(m, lang: lang);
 final _halfHours = [for (var m = 7 * 60; m <= 21 * 60; m += 30) m];
 
 // ---------------------------------------------------------------- 1. profile
@@ -153,6 +158,25 @@ class _ProfileStepState extends State<ProfileStep> {
   late final _phone = TextEditingController(text: _c['phone']);
   late final Set<String> _kind = {for (final k in (_c['kind'] as String? ?? '').split(',')) if (k.trim().isNotEmpty) k.trim()};
   late String _brand = _c['brand'] ?? 'blue';
+  late String _logo = _c['logo'] as String? ?? '';
+  bool _logoBusy = false;
+
+  Future<void> _chooseLogo() async {
+    setState(() => _logoBusy = true);
+    try {
+      final png = await pickLogo();
+      if (!mounted) return;
+      if (png == null) {
+        say(context, tr('That file isn’t a picture we can read. Try a PNG or JPG.'));
+      } else {
+        setState(() => _logo = png);
+      }
+    } on LogoProblem {
+      if (mounted) say(context, tr('That picture is over 5 MB. Choose a smaller file.'));
+    } finally {
+      if (mounted) setState(() => _logoBusy = false);
+    }
+  }
   late final Set<String> _languages = {...List<String>.from(_c['languages'] ?? const ['en'])};
   late LatLng _pin = LatLng((_c['lat'] as num).toDouble(), (_c['lng'] as num).toDouble());
   bool _pinMoved = false;
@@ -166,11 +190,11 @@ class _ProfileStepState extends State<ProfileStep> {
   }
 
   Future<String?> _save() async {
-    if (_name.text.trim().isEmpty) return 'Enter the clinic’s name.';
-    if (_address.text.trim().isEmpty) return 'Enter the street address patients come to.';
-    if (_phone.text.replaceAll(RegExp(r'\D'), '').length < 10) return 'Enter the clinic’s phone number with area code.';
-    if (_kind.isEmpty) return 'Choose at least one kind of care, so patients can find you.';
-    if (!_pinMoved && widget.setup.doneSteps.isEmpty) return 'Click the map where the clinic is, so it shows in the right place.';
+    if (_name.text.trim().isEmpty) return tr('Enter the clinic’s name.');
+    if (_address.text.trim().isEmpty) return tr('Enter the street address patients come to.');
+    if (_phone.text.replaceAll(RegExp(r'\D'), '').length < 10) return tr('Enter the clinic’s phone number with area code.');
+    if (_kind.isEmpty) return tr('Choose at least one kind of care, so patients can find you.');
+    if (!_pinMoved && widget.setup.doneSteps.isEmpty) return tr('Click the map where the clinic is, so it shows in the right place.');
     await widget.setup.saveProfile(
       name: _name.text,
       address: _address.text,
@@ -181,6 +205,7 @@ class _ProfileStepState extends State<ProfileStep> {
       languages: _languages.toList(),
       lat: _pin.latitude,
       lng: _pin.longitude,
+      logo: _logo,
     );
     return null;
   }
@@ -191,28 +216,28 @@ class _ProfileStepState extends State<ProfileStep> {
     return StepFrame(
       setup: widget.setup,
       step: 1,
-      intro: 'Patients see this name, address and colour on the booking page, in messages and in the clinic directory.',
+      intro: tr('Patients see this name, address and colour on the booking page, in messages and in the clinic directory.'),
       onSave: _save,
       children: [
         Group(
-          title: 'Clinic',
+          title: tr('Clinic'),
           child: Wrap(spacing: 16, runSpacing: 12, children: [
-            _field(_name, 'Clinic name', 360),
-            _field(_phone, 'Phone', 220, keyboard: TextInputType.phone),
-            _field(_address, 'Street address', 360),
-            _field(_city, 'City and province', 220, hint: 'e.g. Toronto, ON'),
+            _field(_name, tr('Clinic name'), 360),
+            _field(_phone, tr('Phone'), 220, keyboard: TextInputType.phone),
+            _field(_address, tr('Street address'), 360),
+            _field(_city, tr('City and province'), 220, hint: tr('e.g. Toronto, ON')),
           ]),
         ),
         Group(
-          title: 'Kind of care',
-          note: 'Patients search the directory by these.',
+          title: tr('Kind of care'),
+          note: tr('Patients search the directory by these.'),
           child: Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final k in _kinds) FilterChip(label: Text(k), selected: _kind.contains(k), onSelected: (on) => setState(() => on ? _kind.add(k) : _kind.remove(k))),
+            for (final k in _kinds) FilterChip(label: Text(tr(k)), selected: _kind.contains(k), onSelected: (on) => setState(() => on ? _kind.add(k) : _kind.remove(k))),
           ]),
         ),
         Group(
-          title: 'Where patients find you',
-          note: _pinMoved ? 'Pinned. Drag the map or click again to adjust.' : 'Click the map where the clinic’s entrance is.',
+          title: tr('Where patients find you'),
+          note: _pinMoved ? tr('Pinned. Drag the map or click again to adjust.') : tr('Click the map where the clinic’s entrance is.'),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
@@ -232,14 +257,36 @@ class _ProfileStepState extends State<ProfileStep> {
                   MarkerLayer(markers: [
                     Marker(point: _pin, width: 40, height: 40, alignment: Alignment.topCenter, child: Icon(Icons.location_on, size: 40, color: c.accent)),
                   ]),
-                  const SimpleAttributionWidget(source: Text('OpenStreetMap contributors')),
+                  SimpleAttributionWidget(source: Text(tr('OpenStreetMap contributors'))),
                 ],
               ),
             ),
           ),
         ),
         Group(
-          title: 'Brand colour',
+          title: tr('Logo'),
+          note: tr('Optional. Shown at the top of your staff website. PNG, JPG, WebP or SVG, up to 5 MB; it’s shrunk to fit.'),
+          child: Row(children: [
+            Container(
+              width: 88,
+              height: 88,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Portal.navy, borderRadius: BorderRadius.circular(10)),
+              child: ClinicLogo(_logo, size: 72, fallback: const Icon(Icons.spa_outlined, size: 36, color: Colors.white)),
+            ),
+            const SizedBox(width: 16),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              OutlinedButton.icon(
+                onPressed: _logoBusy ? null : _chooseLogo,
+                icon: const Icon(Icons.upload_outlined, size: 18),
+                label: Text(_logo.isEmpty ? tr('Upload logo') : tr('Replace logo')),
+              ),
+              if (_logo.isNotEmpty) TextButton(onPressed: () => setState(() => _logo = ''), child: Text(tr('Remove'))),
+            ]),
+          ]),
+        ),
+        Group(
+          title: tr('Brand colour'),
           child: Row(children: [
             for (final e in _brands.entries)
               Padding(
@@ -247,7 +294,7 @@ class _ProfileStepState extends State<ProfileStep> {
                 child: Semantics(
                   button: true,
                   selected: _brand == e.key,
-                  label: '${e.key} brand colour',
+                  label: tr('{colour} brand colour', {'colour': tr(e.key)}),
                   child: InkWell(
                     customBorder: const CircleBorder(),
                     onTap: () => setState(() => _brand = e.key),
@@ -267,8 +314,8 @@ class _ProfileStepState extends State<ProfileStep> {
           ]),
         ),
         Group(
-          title: 'Languages',
-          note: 'Patient messages and the booking page are offered in these.',
+          title: tr('Languages'),
+          note: tr('Patient messages and the booking page are offered in these.'),
           child: Wrap(spacing: 8, children: [
             for (final (k, l) in const [('en', 'English'), ('fr', 'Français')])
               FilterChip(
@@ -284,7 +331,7 @@ class _ProfileStepState extends State<ProfileStep> {
               ),
           ]),
         ),
-        Text('One location for now. Clinics with several locations come later.', style: t.bodySmall),
+        Text(tr('One location for now. Clinics with several locations come later.'), style: t.bodySmall),
       ],
     );
   }
@@ -305,8 +352,8 @@ class ServicesStep extends StatelessWidget {
         builder: (context, _) => StepFrame(
           setup: setup,
           step: 2,
-          intro: 'What patients can book, and how long each visit takes. You choose who offers each one in the next step.',
-          onSave: () async => setup.services.isEmpty ? 'Add at least one service.' : null,
+          intro: tr('What patients can book, and how long each visit takes. You choose who offers each one in the next step.'),
+          onSave: () async => setup.services.isEmpty ? tr('Add at least one service.') : null,
           children: [ServicesEditor(setup: setup)],
         ),
       );
@@ -335,7 +382,7 @@ class _ServicesEditorState extends State<ServicesEditor> {
   }
 
   Future<void> _add() async {
-    if (_name.text.trim().isEmpty) return setState(() => _error = 'Name the service first.');
+    if (_name.text.trim().isEmpty) return setState(() => _error = tr('Name the service first.'));
     await widget.setup.addService(name: _name.text, nameFr: _nameFr.text, minutes: _minutes, online: _online, who: _who.text);
     _name.clear();
     _nameFr.clear();
@@ -352,43 +399,43 @@ class _ServicesEditorState extends State<ServicesEditor> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Group(
-            title: 'Services',
+            title: tr('Services'),
             child: Column(children: [
-              if (widget.setup.services.isEmpty) Align(alignment: Alignment.centerLeft, child: Text('None yet. Add your first one below.', style: t.bodySmall)),
+              if (widget.setup.services.isEmpty) Align(alignment: Alignment.centerLeft, child: Text(tr('None yet. Add your first one below.'), style: t.bodySmall)),
               for (final s in widget.setup.services)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(s.name),
-                  subtitle: Text('${s.minutes} min${s.nameFr.isEmpty ? '' : ' · FR: ${s.nameFr}'}${s.who.isEmpty ? '' : ' · ${s.who}'}'),
+                  subtitle: Text('${tr('{n} min', {'n': s.minutes})}${s.nameFr.isEmpty ? '' : ' · FR: ${s.nameFr}'}${s.who.isEmpty ? '' : ' · ${s.who}'}'),
                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text(s.online ? 'Bookable online' : 'Front desk only', style: t.bodySmall),
+                    Text(s.online ? tr('Bookable online') : tr('Front desk only'), style: t.bodySmall),
                     Switch(value: s.online, onChanged: (v) => widget.setup.setServiceOnline(s.id, v)),
-                    IconButton(tooltip: 'Remove ${s.name}', icon: Icon(Icons.delete_outline, color: c.crit), onPressed: () => widget.setup.removeService(s.id)),
+                    IconButton(tooltip: tr('Remove {name}', {'name': s.name}), icon: Icon(Icons.delete_outline, color: c.crit), onPressed: () => widget.setup.removeService(s.id)),
                   ]),
                 ),
             ]),
           ),
           Group(
-            title: 'Add a service',
+            title: tr('Add a service'),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Wrap(spacing: 16, runSpacing: 12, crossAxisAlignment: WrapCrossAlignment.end, children: [
-                SizedBox(width: 300, child: TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name', hintText: 'e.g. Physiotherapy · follow-up'))),
-                SizedBox(width: 300, child: TextField(controller: _nameFr, decoration: const InputDecoration(labelText: 'French name (optional)', hintText: 'e.g. Physiothérapie · suivi'))),
+                SizedBox(width: 300, child: TextField(controller: _name, decoration: InputDecoration(labelText: tr('Name'), hintText: tr('e.g. Physiotherapy · follow-up')))),
+                SizedBox(width: 300, child: TextField(controller: _nameFr, decoration: InputDecoration(labelText: tr('French name (optional)'), hintText: tr('e.g. Physiothérapie · suivi')))),
                 SizedBox(
                   width: 140,
                   child: DropdownButtonFormField<int>(
                     initialValue: _minutes,
-                    decoration: const InputDecoration(labelText: 'Length'),
-                    items: [for (final m in const [10, 15, 20, 30, 45, 50, 60, 90]) DropdownMenuItem(value: m, child: Text('$m min'))],
+                    decoration: InputDecoration(labelText: tr('Length')),
+                    items: [for (final m in const [10, 15, 20, 30, 45, 50, 60, 90]) DropdownMenuItem(value: m, child: Text(tr('{n} min', {'n': m})))],
                     onChanged: (v) => setState(() => _minutes = v!),
                   ),
                 ),
-                SizedBox(width: 300, child: TextField(controller: _who, decoration: const InputDecoration(labelText: 'Who it’s for (optional)', hintText: 'e.g. Returning patients'))),
-                SizedBox(width: 220, child: SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Bookable online'), value: _online, onChanged: (v) => setState(() => _online = v))),
+                SizedBox(width: 300, child: TextField(controller: _who, decoration: InputDecoration(labelText: tr('Who it’s for (optional)'), hintText: tr('e.g. Returning patients')))),
+                SizedBox(width: 220, child: SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('Bookable online')), value: _online, onChanged: (v) => setState(() => _online = v))),
               ]),
               if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: t.bodyMedium?.copyWith(color: c.crit))),
               const SizedBox(height: 12),
-              OutlinedButton.icon(onPressed: _add, icon: const Icon(Icons.add), label: const Text('Add service')),
+              OutlinedButton.icon(onPressed: _add, icon: const Icon(Icons.add), label: Text(tr('Add service'))),
             ]),
           ),
         ],
@@ -409,8 +456,8 @@ class CliniciansStep extends StatelessWidget {
         builder: (context, _) => StepFrame(
           setup: setup,
           step: 3,
-          intro: 'Who sees patients, the days and hours they work, and which services they offer. Breaks and time off can be added later.',
-          onSave: () async => setup.clinicians.isEmpty ? 'Add at least one clinician.' : null,
+          intro: tr('Who sees patients, the days and hours they work, and which services they offer. Breaks and time off can be added later.'),
+          onSave: () async => setup.clinicians.isEmpty ? tr('Add at least one clinician.') : null,
           children: [CliniciansEditor(setup: setup)],
         ),
       );
@@ -441,13 +488,13 @@ class _CliniciansEditorState extends State<CliniciansEditor> {
 
   Future<void> _add() async {
     final err = _name.text.trim().isEmpty
-        ? 'Enter the clinician’s name.'
+        ? tr('Enter the clinician’s name.')
         : _role.text.trim().isEmpty
-            ? 'Enter their role, e.g. Physiotherapist.'
+            ? tr('Enter their role, e.g. Physiotherapist.')
             : _days.isEmpty
-                ? 'Pick the days they work.'
+                ? tr('Pick the days they work.')
                 : _end <= _start
-                    ? 'The end of their day must be after the start.'
+                    ? tr('The end of their day must be after the start.')
                     : null;
     if (err != null) return setState(() => _error = err);
     await widget.setup.addClinician(name: _name.text, role: _role.text, days: weekdays.where(_days.contains).toList(), start: _start, end: _end, serviceIds: (_services ?? {}).toList());
@@ -469,19 +516,19 @@ class _CliniciansEditorState extends State<CliniciansEditor> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Group(
-              title: 'Clinicians',
+              title: tr('Clinicians'),
               child: Column(children: [
-                if (s.clinicians.isEmpty) Align(alignment: Alignment.centerLeft, child: Text('None yet. Add your first one below.', style: t.bodySmall)),
+                if (s.clinicians.isEmpty) Align(alignment: Alignment.centerLeft, child: Text(tr('None yet. Add your first one below.'), style: t.bodySmall)),
                 for (final cl in s.clinicians)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text('${cl.name} · ${cl.role}'),
-                    subtitle: Text('${cl.days.join(', ')} · ${hhmm(cl.start)} to ${hhmm(cl.end)}\n'
-                        'Offers: ${s.services.where((x) => x.clinicianIds.contains(cl.id)).map((x) => x.name).join(', ').ifEmpty('no services yet')}'),
+                    subtitle: Text('${cl.days.map(tr).join(', ')} · ${tr('{from} to {to}', {'from': hhmm(cl.start), 'to': hhmm(cl.end)})}\n'
+                        '${tr('Offers: {services}', {'services': s.services.where((x) => x.clinicianIds.contains(cl.id)).map((x) => x.name).join(', ').ifEmpty(tr('no services yet'))})}'),
                     isThreeLine: true,
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                      IconButton(tooltip: 'Edit hours for ${cl.name}', icon: const Icon(Icons.schedule), onPressed: () => _editHours(cl)),
-                      IconButton(tooltip: 'Remove ${cl.name}', icon: Icon(Icons.delete_outline, color: c.crit), onPressed: () => s.removeClinician(cl.id)),
+                      IconButton(tooltip: tr('Edit hours for {name}', {'name': cl.name}), icon: const Icon(Icons.schedule), onPressed: () => _editHours(cl)),
+                      IconButton(tooltip: tr('Remove {name}', {'name': cl.name}), icon: Icon(Icons.delete_outline, color: c.crit), onPressed: () => s.removeClinician(cl.id)),
                     ]),
                   ),
                 if (unstaffed.isNotEmpty && s.clinicians.isNotEmpty)
@@ -490,43 +537,43 @@ class _CliniciansEditorState extends State<CliniciansEditor> {
                     margin: const EdgeInsets.only(top: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: c.warnSoft, borderRadius: BorderRadius.circular(8)),
-                    child: Text('Nobody offers ${unstaffed.join(', ')} yet, so patients can’t book it.', style: t.bodyMedium?.copyWith(color: c.warn)),
+                    child: Text(tr('Nobody offers {services} yet, so patients can’t book it.', {'services': unstaffed.join(', ')}), style: t.bodyMedium?.copyWith(color: c.warn)),
                   ),
               ]),
             ),
             Group(
-              title: 'Add a clinician',
+              title: tr('Add a clinician'),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Wrap(spacing: 16, runSpacing: 12, children: [
-                  SizedBox(width: 300, child: TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name', hintText: 'e.g. Dr. Kwame Osei'))),
-                  SizedBox(width: 300, child: TextField(controller: _role, decoration: const InputDecoration(labelText: 'Role', hintText: 'e.g. Physiotherapist'))),
+                  SizedBox(width: 300, child: TextField(controller: _name, decoration: InputDecoration(labelText: tr('Name'), hintText: tr('e.g. Dr. Kwame Osei')))),
+                  SizedBox(width: 300, child: TextField(controller: _role, decoration: InputDecoration(labelText: tr('Role'), hintText: tr('e.g. Physiotherapist')))),
                 ]),
                 const SizedBox(height: 16),
-                Text('Days', style: t.labelLarge),
+                Text(tr('Days'), style: t.labelLarge),
                 const SizedBox(height: 6),
                 Wrap(spacing: 8, children: [
-                  for (final d in weekdays) FilterChip(label: Text(d), selected: _days.contains(d), onSelected: (on) => setState(() => on ? _days.add(d) : _days.remove(d))),
+                  for (final d in weekdays) FilterChip(label: Text(tr(d)), selected: _days.contains(d), onSelected: (on) => setState(() => on ? _days.add(d) : _days.remove(d))),
                 ]),
                 const SizedBox(height: 16),
                 Wrap(spacing: 16, runSpacing: 12, children: [
-                  _time('Starts', _start, (v) => setState(() => _start = v)),
-                  _time('Ends', _end, (v) => setState(() => _end = v)),
+                  _time(tr('Starts'), _start, (v) => setState(() => _start = v)),
+                  _time(tr('Ends'), _end, (v) => setState(() => _end = v)),
                 ]),
                 const SizedBox(height: 16),
-                Text('Offers', style: t.labelLarge),
-                if (s.services.isEmpty) Text('Add services in step 2 first.', style: t.bodySmall),
+                Text(tr('Offers'), style: t.labelLarge),
+                if (s.services.isEmpty) Text(tr('Add services in step 2 first.'), style: t.bodySmall),
                 for (final x in s.services)
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
                     controlAffinity: ListTileControlAffinity.leading,
                     dense: true,
-                    title: Text('${x.name} · ${x.minutes} min'),
+                    title: Text('${x.name} · ${tr('{n} min', {'n': x.minutes})}'),
                     value: _services?.contains(x.id) ?? false,
                     onChanged: (on) => setState(() => on! ? _services!.add(x.id) : _services!.remove(x.id)),
                   ),
                 if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: t.bodyMedium?.copyWith(color: c.crit))),
                 const SizedBox(height: 12),
-                OutlinedButton.icon(onPressed: _add, icon: const Icon(Icons.add), label: const Text('Add clinician')),
+                OutlinedButton.icon(onPressed: _add, icon: const Icon(Icons.add), label: Text(tr('Add clinician'))),
               ]),
             ),
           ],
@@ -543,27 +590,27 @@ class _CliniciansEditorState extends State<CliniciansEditor> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, set) => AlertDialog(
-          title: Text('Hours for ${cl.name}'),
+          title: Text(tr('Hours for {name}', {'name': cl.name})),
           content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final d in weekdays) FilterChip(label: Text(d), selected: days.contains(d), onSelected: (on) => set(() => on ? days.add(d) : days.remove(d))),
+              for (final d in weekdays) FilterChip(label: Text(tr(d)), selected: days.contains(d), onSelected: (on) => set(() => on ? days.add(d) : days.remove(d))),
             ]),
             const SizedBox(height: 16),
             Wrap(spacing: 16, runSpacing: 12, children: [
-              _time('Starts', start, (v) => set(() => start = v)),
-              _time('Ends', end, (v) => set(() => end = v)),
+              _time(tr('Starts'), start, (v) => set(() => start = v)),
+              _time(tr('Ends'), end, (v) => set(() => end = v)),
             ]),
             if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: TextStyle(color: CfColors.of(context).crit))),
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Cancel'))),
             FilledButton(
               onPressed: () async {
-                if (days.isEmpty || end <= start) return set(() => error = days.isEmpty ? 'Pick the days they work.' : 'The end of their day must be after the start.');
+                if (days.isEmpty || end <= start) return set(() => error = days.isEmpty ? tr('Pick the days they work.') : tr('The end of their day must be after the start.'));
                 await widget.setup.updateClinicianHours(cl.id, days: weekdays.where(days.contains).toList(), start: start, end: end);
                 if (context.mounted) Navigator.pop(context);
               },
-              child: const Text('Save'),
+              child: Text(tr('Save')),
             ),
           ],
         ),
@@ -604,7 +651,7 @@ class ExistingStep extends StatelessWidget {
       builder: (context, _) => StepFrame(
         setup: setup,
         step: 4,
-        intro: 'Optional. No spreadsheet is needed to finish setup.',
+        intro: tr('Optional. No spreadsheet is needed to finish setup.'),
         children: [
           for (final (k, title, sub) in options)
             Semantics(
@@ -613,8 +660,8 @@ class ExistingStep extends StatelessWidget {
               child: ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(setup.clinic['existing'] == k ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: CfColors.of(context).accent),
-                title: Text(title),
-                subtitle: Text(sub),
+                title: Text(tr(title)),
+                subtitle: Text(tr(sub)),
                 onTap: () => setup.setExisting(k),
               ),
             ),
@@ -637,24 +684,24 @@ class BookingLinkStep extends StatelessWidget {
     return StepFrame(
       setup: setup,
       step: 5,
-      intro: 'Patients scan this or tap the link, pick a time and confirm with a text code. No app or account needed.',
+      intro: tr('Patients scan this or tap the link, pick a time and confirm with a text code. No app or account needed.'),
       children: [
         Wrap(spacing: 32, runSpacing: 24, crossAxisAlignment: WrapCrossAlignment.center, children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: c.line)),
-            child: QrImageView(data: url, size: 180, semanticsLabel: 'QR code for $url'),
+            child: QrImageView(data: url, size: 180, semanticsLabel: tr('QR code for {url}', {'url': url})),
           ),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Your booking link', style: t.titleMedium),
+              Text(tr('Your booking link'), style: t.titleMedium),
               const SizedBox(height: 6),
               SelectableText(url, style: t.bodyLarge?.copyWith(color: c.accent)),
               const SizedBox(height: 12),
-              Text('Print the QR code for the front desk, the door and appointment cards.', style: t.bodySmall),
+              Text(tr('Print the QR code for the front desk, the door and appointment cards.'), style: t.bodySmall),
               const SizedBox(height: 8),
-              Text('The link starts working when the patient web app is published (Firebase Hosting).', style: t.bodySmall?.copyWith(color: c.warn)),
+              Text(tr('The link starts working when the patient web app is published (Firebase Hosting).'), style: t.bodySmall?.copyWith(color: c.warn)),
             ]),
           ),
         ]),
@@ -681,33 +728,33 @@ class RulesStep extends StatelessWidget {
                 key: ValueKey('$key${r[key]}'),
                 initialValue: r[key],
                 decoration: InputDecoration(labelText: label),
-                items: [for (final (v, l) in options) DropdownMenuItem(value: v, child: Text(l))],
+                items: [for (final (v, l) in options) DropdownMenuItem(value: v, child: Text(tr(l)))],
                 onChanged: (v) => setup.setRule(key, v!),
               ),
             );
         return StepFrame(
           setup: setup,
           step: 6,
-          intro: 'How cancellations, waitlist offers and reminders work at your clinic. Every change is recorded in the audit log.',
+          intro: tr('How cancellations, waitlist offers and reminders work at your clinic. Every change is recorded in the audit log.'),
           children: [
             Group(
-              title: 'Cancellations and booking',
+              title: tr('Cancellations and booking'),
               child: Wrap(spacing: 16, runSpacing: 16, children: [
-                choice('cancelWindowHours', 'Free cancellation until', const [(12, '12 hours before'), (24, '24 hours before'), (48, '48 hours before')]),
-                choice('cutoffMinutes', 'Same-day online booking', const [(60, 'Up to 1 hour before'), (120, 'Up to 2 hours before'), (-1, 'Not allowed')]),
+                choice('cancelWindowHours', tr('Free cancellation until'), const [(12, '12 hours before'), (24, '24 hours before'), (48, '48 hours before')]),
+                choice('cutoffMinutes', tr('Same-day online booking'), const [(60, 'Up to 1 hour before'), (120, 'Up to 2 hours before'), (-1, 'Not allowed')]),
               ]),
             ),
             Group(
-              title: 'Waitlist',
-              note: 'When a time frees up, it is offered to the first matching person on the waitlist.',
-              child: choice('offerHoldMinutes', 'An offer is held for', const [(15, '15 minutes'), (30, '30 minutes'), (60, '1 hour')]),
+              title: tr('Waitlist'),
+              note: tr('When a time frees up, it is offered to the first matching person on the waitlist.'),
+              child: choice('offerHoldMinutes', tr('An offer is held for'), const [(15, '15 minutes'), (30, '30 minutes'), (60, '1 hour')]),
             ),
             Group(
-              title: 'Reminders',
-              note: 'Each reminder has a one-tap confirm.',
+              title: tr('Reminders'),
+              note: tr('Each reminder has a one-tap confirm.'),
               child: Column(children: [
-                SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('48 hours before (push, then email)'), value: r['remind48'] ?? true, onChanged: (v) => setup.setRule('remind48', v)),
-                SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('24 hours before (push, then text)'), value: r['remind24'] ?? true, onChanged: (v) => setup.setRule('remind24', v)),
+                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('48 hours before (push, then email)')), value: r['remind48'] ?? true, onChanged: (v) => setup.setRule('remind48', v)),
+                SwitchListTile(contentPadding: EdgeInsets.zero, title: Text(tr('24 hours before (push, then text)')), value: r['remind24'] ?? true, onChanged: (v) => setup.setRule('remind24', v)),
               ]),
             ),
           ],
@@ -739,8 +786,8 @@ class _StaffStepState extends State<StaffStep> {
   }
 
   Future<void> _invite() async {
-    if (_name.text.trim().isEmpty) return setState(() => _error = 'Enter their name.');
-    if (!_email.text.contains('@')) return setState(() => _error = 'Enter their work email.');
+    if (_name.text.trim().isEmpty) return setState(() => _error = tr('Enter their name.'));
+    if (!_email.text.contains('@')) return setState(() => _error = tr('Enter their work email.'));
     await widget.setup.invite(name: _name.text, email: _email.text, role: _role);
     _name.clear();
     _email.clear();
@@ -757,51 +804,51 @@ class _StaffStepState extends State<StaffStep> {
         return StepFrame(
           setup: s,
           step: 7,
-          intro: 'Optional. Each person signs in with their own account, and their role decides what they can see and change.',
+          intro: tr('Optional. Each person signs in with their own account, and their role decides what they can see and change.'),
           children: [
             Group(
-              title: 'Your team',
+              title: tr('Your team'),
               child: Column(children: [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text('${s.user?.displayName ?? ''} (you)'),
+                  title: Text(tr('{name} (you)', {'name': s.user?.displayName ?? ''})),
                   subtitle: Text(s.user?.email ?? ''),
-                  trailing: const Text('Admin'),
+                  trailing: Text(tr('Admin')),
                 ),
                 for (final i in s.invites)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(i.name),
-                    subtitle: Text('${i.email} · invited, hasn’t signed in yet'),
+                    subtitle: Text(tr('{email} · invited, hasn’t signed in yet', {'email': i.email})),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text(staffRoles[i.role] ?? i.role),
-                      IconButton(tooltip: 'Cancel invitation for ${i.name}', icon: Icon(Icons.close, color: c.crit), onPressed: () => s.removeInvite(i.id)),
+                      Text(tr(staffRoles[i.role] ?? i.role)),
+                      IconButton(tooltip: tr('Cancel invitation for {name}', {'name': i.name}), icon: Icon(Icons.close, color: c.crit), onPressed: () => s.removeInvite(i.id)),
                     ]),
                   ),
               ]),
             ),
             Group(
-              title: 'Invite someone',
-              note: 'Admins can change everything; front desk runs the day; clinicians see their own patients; support has read-only access.',
+              title: tr('Invite someone'),
+              note: tr('Admins can change everything; front desk runs the day; clinicians see their own patients; support has read-only access.'),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Wrap(spacing: 16, runSpacing: 12, children: [
-                  SizedBox(width: 240, child: TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name'))),
-                  SizedBox(width: 280, child: TextField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Work email'))),
+                  SizedBox(width: 240, child: TextField(controller: _name, decoration: InputDecoration(labelText: tr('Name')))),
+                  SizedBox(width: 280, child: TextField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: tr('Work email')))),
                   SizedBox(
                     width: 180,
                     child: DropdownButtonFormField<String>(
                       initialValue: _role,
-                      decoration: const InputDecoration(labelText: 'Role'),
-                      items: [for (final e in staffRoles.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
+                      decoration: InputDecoration(labelText: tr('Role')),
+                      items: [for (final e in staffRoles.entries) DropdownMenuItem(value: e.key, child: Text(tr(e.value)))],
                       onChanged: (v) => setState(() => _role = v!),
                     ),
                   ),
                 ]),
                 if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: t.bodyMedium?.copyWith(color: c.crit))),
                 const SizedBox(height: 12),
-                OutlinedButton.icon(onPressed: _invite, icon: const Icon(Icons.person_add_alt), label: const Text('Add invitation')),
+                OutlinedButton.icon(onPressed: _invite, icon: const Icon(Icons.person_add_alt), label: Text(tr('Add invitation'))),
                 const SizedBox(height: 8),
-                Text('Invitations are saved now; the email that sends them comes with the Cloud Functions step.', style: t.bodySmall?.copyWith(color: c.warn)),
+                Text(tr('Invitation emails aren’t sent yet: ask each person to create an account on this site with the email you entered.'), style: t.bodySmall?.copyWith(color: c.warn)),
               ]),
             ),
           ],
@@ -827,18 +874,18 @@ class DirectoryStep extends StatelessWidget {
         return StepFrame(
           setup: setup,
           step: 8,
-          intro: 'Optional. Listed clinics appear in the ClinicFlow app’s clinic map and search, so nearby patients can find your openings.',
-          nextLabel: setup.finished ? 'Save' : 'Submit for review',
+          intro: tr('Optional. Listed clinics appear in the ClinicFlow app’s clinic map and search, so nearby patients can find your openings.'),
+          nextLabel: setup.finished ? tr('Save') : tr('Submit for review'),
           children: [
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('List ${k['name']} in the ClinicFlow directory'),
-              subtitle: const Text('Only your profile and open times are shared. Never patient names or reasons for visits.'),
+              title: Text(tr('List {name} in the ClinicFlow directory', {'name': k['name']})),
+              subtitle: Text(tr('Only your profile and open times are shared. Never patient names or reasons for visits.')),
               value: listed,
               onChanged: setup.setListed,
             ),
             const SizedBox(height: 16),
-            Text('How patients will see you', style: t.titleMedium),
+            Text(tr('How patients will see you'), style: t.titleMedium),
             const SizedBox(height: 8),
             Opacity(
               opacity: listed ? 1 : .45,
@@ -852,7 +899,7 @@ class DirectoryStep extends StatelessWidget {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(k['name'] ?? '', style: t.titleMedium),
                       Text('${k['address']}${(k['city'] as String? ?? '').isEmpty ? '' : ', ${k['city']}'} · ${k['kind']}', style: t.bodySmall),
-                      Text('${setup.services.where((s) => s.online).length} services bookable online', style: t.bodySmall?.copyWith(color: c.good)),
+                      Text(trn(setup.services.where((s) => s.online).length, '{n} service bookable online', '{n} services bookable online'), style: t.bodySmall?.copyWith(color: c.good)),
                     ]),
                   ),
                 ]),
@@ -861,8 +908,8 @@ class DirectoryStep extends StatelessWidget {
             if (!setup.finished) ...[
               const SizedBox(height: 16),
               Text(
-                'Submitting sends your clinic to ClinicFlow for a quick check of its name, address and phone, usually within one business day. '
-                'Once it’s approved, patients can book you${listed ? ' and find you in the directory' : ' through your link'}. Your team can use the calendar meanwhile.',
+                '${tr('Submitting sends your clinic to ClinicFlow for a quick check of its name, address and phone, usually within one business day.')} '
+                '${listed ? tr('Once it’s approved, patients can book you and find you in the directory. Your team can use the calendar meanwhile.') : tr('Once it’s approved, patients can book you through your link. Your team can use the calendar meanwhile.')}',
                 style: t.bodySmall,
               ),
             ],

@@ -2,6 +2,7 @@ import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n.dart';
 import '../shell.dart';
 import '../ui.dart';
 import '../visit.dart';
@@ -31,13 +32,13 @@ class QueuePage extends StatelessWidget {
     final expected = today.where((a) => a.status.upcoming && !desk.isLate(a) && a.minute <= desk.nowMinute + 120).toList();
 
     return PageFrame(
-      eyebrow: 'Live · ${formatTime(desk.nowMinute)}',
-      title: 'Waiting room',
+      eyebrow: tr('Live · {time}', {'time': formatTime(desk.nowMinute, lang: lang)}),
+      title: tr('Waiting room'),
       actions: [
         OutlinedButton(
           style: smallButton,
           onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(fullscreenDialog: true, builder: (_) => TvBoard(setup: setup, desk: desk))),
-          child: const Text('Open TV board'),
+          child: Text(tr('Open TV board')),
         ),
       ],
       children: [
@@ -45,21 +46,21 @@ class QueuePage extends StatelessWidget {
           child: desk.me.readOnly
               ? _TicketsOnly(desk: desk)
               : SimpleTable(
-                  columns: const ['Ticket', 'Patient', 'Appt', 'Status', 'Waited', 'Form', ''],
-                  empty: 'Nobody has arrived yet.',
+                  columns: [tr('Ticket'), tr('Patient'), tr('Appt'), tr('Status'), tr('Waited'), tr('Form'), ''],
+                  empty: tr('Nobody has arrived yet.'),
                   rows: [
                     for (final a in here)
                       [
                         Text(a.ticket ?? '—', style: t.labelLarge),
                         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(a.patientName), Text(clinicianShort(setup, a.clinicianId), style: t.bodySmall)]),
-                        Text(formatTime(a.minute)),
-                        StatusMark(shownStatus(desk, a)),
+                        Text(formatTime(a.minute, lang: lang)),
+                        StatusMark(shownStatus(desk, a), label: tr(shownStatus(desk, a).label)),
                         Text(a.status == ApptStatus.waiting || a.status == ApptStatus.checkedIn
-                            ? '${desk.waited(a)} min'
+                            ? tr('{n} min', {'n': desk.waited(a)})
                             : desk.isLate(a)
-                                ? '${desk.lateBy(a)} min late'
+                                ? tr('{n} min late', {'n': desk.lateBy(a)})
                                 : ''),
-                        a.formsDone ? const Pill('Done', tone: Tone.good) : const Pill('Open', tone: Tone.warn),
+                        a.formsDone ? Pill(tr('Done'), tone: Tone.good) : Pill(tr('Open'), tone: Tone.warn),
                         RowActions(visitActions(context, desk, a, primary: a == next)),
                       ],
                   ],
@@ -68,27 +69,27 @@ class QueuePage extends StatelessWidget {
         Columns(children: [
           _Board(desk: desk, compact: true),
           Panel(
-            title: 'Self check-in',
+            title: tr('Self check-in'),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Patients check in on their phone from 60 minutes before, within 200 m of the clinic, or on the front-desk tablet with the last 4 digits of their phone number.', style: t.bodySmall),
+              Text(_checkInText(setup), style: t.bodySmall),
               const SizedBox(height: 10),
-              if (desk.me.runsDay) OutlinedButton(style: smallButton, onPressed: () => onGo(StaffPage.kiosk), child: const Text('Open check-in tablet')),
+              if (desk.me.runsDay && _on(setup, 'kiosk')) OutlinedButton(style: smallButton, onPressed: () => onGo(StaffPage.kiosk), child: Text(tr('Open check-in tablet'))),
             ]),
           ),
         ]),
         if (!desk.me.readOnly)
           Panel(
-            title: 'Expected in the next 2 hours',
+            title: tr('Expected in the next 2 hours'),
             child: SimpleTable(
-              columns: const ['Appt', 'Patient', 'Status', 'Form', ''],
-              empty: 'No one else is due in the next 2 hours.',
+              columns: [tr('Appt'), tr('Patient'), tr('Status'), tr('Form'), ''],
+              empty: tr('No one else is due in the next 2 hours.'),
               rows: [
                 for (final a in expected)
                   [
-                    Text(formatTime(a.minute)),
+                    Text(formatTime(a.minute, lang: lang)),
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(a.patientName), Text(clinicianShort(setup, a.clinicianId), style: t.bodySmall)]),
-                    StatusMark(a.status),
-                    a.formsDone ? const Pill('Done', tone: Tone.good) : const Pill('Open', tone: Tone.warn),
+                    StatusMark(a.status, label: tr(a.status.label)),
+                    a.formsDone ? Pill(tr('Done'), tone: Tone.good) : Pill(tr('Open'), tone: Tone.warn),
                     RowActions(visitActions(context, desk, a)),
                   ],
               ],
@@ -107,10 +108,10 @@ class _TicketsOnly extends StatelessWidget {
   Widget build(BuildContext context) {
     final q = [...desk.queue.where((x) => x['status'] != 'complete')]..sort((a, b) => ((a['n'] as int?) ?? 0) - ((b['n'] as int?) ?? 0));
     return SimpleTable(
-      columns: const ['Ticket', 'Status'],
-      empty: 'Nobody is in the waiting room.',
+      columns: [tr('Ticket'), tr('Status')],
+      empty: tr('Nobody is in the waiting room.'),
       rows: [
-        for (final x in q) [Text('${x['ticket']}'), StatusMark(ApptStatus.values.asNameMap()['${x['status']}'] ?? ApptStatus.checkedIn)],
+        for (final x in q) [Text('${x['ticket']}'), _mark(ApptStatus.values.asNameMap()['${x['status']}'] ?? ApptStatus.checkedIn)],
       ],
     );
   }
@@ -133,12 +134,10 @@ class _Board extends StatelessWidget {
       padding: EdgeInsets.all(compact ? 20 : 48),
       decoration: BoxDecoration(color: c.hero, borderRadius: BorderRadius.circular(compact ? 12 : 0)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        Text('Now serving', style: t.labelLarge?.copyWith(color: c.heroFg.withValues(alpha: .75), fontSize: compact ? 14 : 28)),
+        Text(tr('Now serving'), style: t.labelLarge?.copyWith(color: c.heroFg.withValues(alpha: .75), fontSize: compact ? 14 : 28)),
         Text(serving.isEmpty ? '—' : serving.join(', '), style: TextStyle(color: c.heroFg, fontSize: big, fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()])),
         const SizedBox(height: 8),
-        Text(up.isEmpty ? 'No one waiting' : 'Next: ${up.join('   ')}', style: TextStyle(color: c.heroFg, fontSize: compact ? 18 : 44, fontWeight: FontWeight.w500)),
-        SizedBox(height: compact ? 12 : 32),
-        Text('Ticket numbers only. No names on the board.', style: t.bodySmall?.copyWith(color: c.heroFg.withValues(alpha: .7), fontSize: compact ? 12 : 20)),
+        Text(up.isEmpty ? tr('No one waiting') : tr('Next: {tickets}', {'tickets': up.join('   ')}), style: TextStyle(color: c.heroFg, fontSize: compact ? 18 : 44, fontWeight: FontWeight.w500)),
       ]),
     );
   }
@@ -159,3 +158,17 @@ class TvBoard extends StatelessWidget {
     );
   }
 }
+
+bool _on(ClinicSetup setup, String feature) => (setup.clinic['features'] as Map?)?[feature] != false;
+
+/// How patients check in at this clinic, from the features it uses (Settings).
+String _checkInText(ClinicSetup setup) {
+  final phone = _on(setup, 'phoneCheckIn'), tablet = _on(setup, 'kiosk');
+  final near = _on(setup, 'locationCheck') ? tr(', within 200 m of the clinic') : '';
+  if (phone && tablet) return tr('Patients check in on their phone from 60 minutes before{near}, or on the front-desk tablet with the last 4 digits of their phone number.', {'near': near});
+  if (phone) return tr('Patients check in on their phone from 60 minutes before{near}. The check-in tablet is off (Settings).', {'near': near});
+  if (tablet) return tr('Patients check in on the front-desk tablet with the last 4 digits of their phone number. Phone check-in is off (Settings).');
+  return tr('Self check-in is off (Settings): the front desk checks patients in from the calendar or this page.');
+}
+
+Widget _mark(ApptStatus s) => StatusMark(s, label: tr(s.label));

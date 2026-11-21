@@ -356,8 +356,11 @@ class ClinicSetup extends ChangeNotifier {
     required List<String> languages,
     required double lat,
     required double lng,
+    String? logo,
   }) =>
       _clinicRef.update({
+        // the logo is a small PNG data URL; an empty one removes it
+        if (logo != null) 'logo': logo.isEmpty ? FieldValue.delete() : logo,
         'name': name.trim(),
         'initials': _initials(name),
         'address': address.trim(),

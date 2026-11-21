@@ -41,6 +41,24 @@ String phoneText(String phone) {
   return n.length == 10 ? '+1 ${n.substring(0, 3)} ${n.substring(3, 6)} ${n.substring(6)}' : phone;
 }
 
+/// What to tell someone whose text code couldn't be sent.
+String codeSendError(Strings s, Object e) => switch (e) {
+      CodeSendException(problem: CodeProblem.badNumber) => s.t('errSendNumber'),
+      CodeSendException(problem: CodeProblem.tooMany) => s.t('errSendBusy'),
+      CodeSendException(problem: CodeProblem.unavailable) => s.t('errSendDown'),
+      _ => s.t('errSend'),
+    };
+
+/// True when [phone] is the number this patient already signed in with, so it needs no new code.
+bool isMyPhone(BuildContext context, String phone) {
+  final b = context.backend, mine = b.signedIn ? (b.profile?.phone ?? '') : '';
+  String last10(String p) {
+    final d = p.replaceAll(RegExp(r'\D'), '');
+    return d.length >= 10 ? d.substring(d.length - 10) : d;
+  }
+  return mine.isNotEmpty && last10(mine) == last10(phone);
+}
+
 /// The name to use for the patient themselves: their profile name, or nothing for a visitor.
 String myName(BuildContext context) => context.backend.profile?.name ?? '';
 

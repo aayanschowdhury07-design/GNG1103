@@ -131,7 +131,10 @@ const mgWaitlist = [
 ];
 // Maple Grove's team on the staff website, one account per role. The shared test password is
 // for the local emulators only.
-const STAFF_PASSWORD = 'maplegrove-test-1';
+// TEST PASSWORD for every local test account below (emulator only; never used on the live project):
+const STAFF_PASSWORD = 'clinic-7109-flow';
+// TEST PIN for Maple Grove's check-in tablet (emulator only; set the real one in Settings):
+const KIOSK_PIN = '091189';
 const mgStaff = [
   ['admin@maplegrove.test', 'Alex Moreau', 'admin', null],
   ['frontdesk@maplegrove.test', 'Nadia Karim', 'frontdesk', null],
@@ -169,6 +172,11 @@ for (const [id, c] of Object.entries(clinics)) {
 }
 // the sample day's breaks and time off
 blocks.forEach(([clinic, clinicianId, type, minutes], i) => put(`clinics/${clinic}/blocks/b${i}`, { clinicianId, type, minutes, date: TODAY }));
+// the check-in tablet PIN, stored the way the staff website stores it: a salted SHA-256 hash
+{
+  const salt = require('crypto').randomBytes(16).toString('base64url');
+  put('clinics/mg/private/kiosk', { salt, pinHash: require('crypto').createHash('sha256').update(`${salt}:${KIOSK_PIN}`).digest('hex') });
+}
 mgAppts.forEach(([patientName, clinicianId, minute, serviceId, status, formsDone, phoneLast4, ticket], i) => {
   const id = `APT-${20901 + i}`;
   put(`clinics/mg/appointments/${id}`, {

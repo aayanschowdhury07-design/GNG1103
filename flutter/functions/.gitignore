@@ -1,0 +1,3 @@
+node_modules/
+# values for the local emulators only; the real keys live in Google Secret Manager
+.secret.local

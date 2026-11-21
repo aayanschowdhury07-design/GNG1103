@@ -1,6 +1,7 @@
 import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:flutter/material.dart';
 
+import '../role_choice.dart';
 import '../scope.dart';
 import '../widgets.dart';
 import 'account.dart';
@@ -117,6 +118,14 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           OutlinedButton(onPressed: b.signOut, child: Text(s.t('signOut'))),
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: () {
+              saveRole('staff');
+              openStaffApp();
+            },
+            child: Text(s.t('staffAppLink')),
+          ),
         ],
       );
     });

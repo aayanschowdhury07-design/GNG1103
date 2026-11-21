@@ -5,6 +5,8 @@ import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../kiosk_lock.dart';
+import '../l10n.dart';
 import '../visit.dart';
 
 const _words = {
@@ -23,6 +25,8 @@ const _words = {
     'done': 'You’re checked in',
     'ticket': 'Your ticket number. Have a seat; it will show on the screen when it’s your turn.',
     'finish': 'Done',
+    'failed': 'Check-in didn’t go through. Please see the front desk.',
+    'digits': '{n} of 4 digits entered',
   },
   'fr': {
     'welcome': 'Bienvenue à {clinic}',
@@ -39,15 +43,24 @@ const _words = {
     'done': 'Vous êtes enregistré',
     'ticket': 'Votre numéro. Asseyez-vous; il s’affichera à l’écran quand ce sera votre tour.',
     'finish': 'Terminé',
+    'failed': 'L’enregistrement n’a pas fonctionné. Veuillez vous adresser à l’accueil.',
+    'digits': '{n} chiffres sur 4 saisis',
   },
 };
 
 /// The front-desk tablet patients check themselves in on. Tap or type; the language and the
 /// digits reset after each patient, so the next one starts fresh.
+///
+/// Staff open it with the tablet PIN, then press Full screen: the staff website disappears and
+/// only check-in is left until someone enters the PIN again, even after a reload or Esc.
 class KioskPage extends StatefulWidget {
-  const KioskPage({super.key, required this.setup, required this.desk});
+  const KioskPage({super.key, required this.setup, required this.desk, this.locked = false, this.onLock, this.onUnlock});
   final ClinicSetup setup;
   final ClinicDesk desk;
+
+  /// Running as the locked, full-screen tablet (no staff website around it).
+  final bool locked;
+  final VoidCallback? onLock, onUnlock;
   @override
   State<KioskPage> createState() => _KioskPageState();
 }
@@ -60,10 +73,46 @@ class _KioskPageState extends State<KioskPage> {
   Timer? _reset;
   final _focus = FocusNode();
 
+  /// The PIN was entered on this visit to the page (always true once locked).
+  bool _unlocked = false;
+  late Future<bool> _pinSet = widget.desk.kioskPinSet();
+  void Function()? _unlisten;
+
+  @override
+  void initState() {
+    super.initState();
+    _unlisten = KioskLock.onFullscreenChange(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _askToExit() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: PinEntry(
+              desk: widget.desk,
+              title: tr('Staff only'),
+              note: tr('Enter the tablet PIN to leave check-in mode.'),
+              onOk: () => Navigator.pop(context, true),
+              onCancel: () => Navigator.pop(context, false),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (ok == true) widget.onUnlock?.call();
+  }
+
   String w(String k, [Map<String, String> v = const {}]) => v.entries.fold(_words[_lang]![k]!, (s, e) => s.replaceAll('{${e.key}}', e.value));
 
   @override
   void dispose() {
+    _unlisten?.call();
     _reset?.cancel();
     _focus.dispose();
     super.dispose();
@@ -99,7 +148,7 @@ class _KioskPageState extends State<KioskPage> {
       });
       _reset = Timer(const Duration(seconds: 8), _start);
     } catch (e) {
-      setState(() => _error = 'Check-in didn’t go through. Please see the front desk.');
+      setState(() => _error = w('failed'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -173,7 +222,7 @@ class _KioskPageState extends State<KioskPage> {
                 const SizedBox(height: 20),
                 Semantics(
                   liveRegion: true,
-                  label: '${_digits.length} of 4 digits entered',
+                  label: w('digits', {'n': '${_digits.length}'}),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     for (var i = 0; i < 4; i++)
                       Container(
@@ -212,7 +261,8 @@ class _KioskPageState extends State<KioskPage> {
       focusNode: _focus,
       autofocus: true,
       onKeyEvent: (_, e) {
-        if (e is! KeyDownEvent) return KeyEventResult.ignored;
+        // while the PIN box is showing, typing goes to it, not the check-in keypad
+        if (e is! KeyDownEvent || (!widget.locked && !_unlocked)) return KeyEventResult.ignored;
         final ch = e.character;
         if (ch != null && RegExp(r'^\d$').hasMatch(ch)) {
           _key(ch);
@@ -226,18 +276,59 @@ class _KioskPageState extends State<KioskPage> {
         return KeyEventResult.handled;
       },
       child: ListView(padding: const EdgeInsets.all(24), children: [
-        Text('Front-desk tablet · patients use it themselves · works with a keyboard too', style: t.bodySmall),
-        Semantics(header: true, child: Text('Check-in tablet', style: t.headlineMedium)),
+        if (widget.locked)
+          // the patient-facing tablet: only a discreet way out for staff, and back to full screen
+          // if the browser left it (Esc)
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            if (!KioskLock.fullscreen) TextButton.icon(onPressed: KioskLock.enterFullscreen, icon: const Icon(Icons.fullscreen), label: Text(tr('Full screen'))),
+            IconButton(tooltip: tr('Staff: leave check-in mode'), onPressed: _askToExit, icon: Icon(Icons.lock_outline, color: c.muted)),
+          ])
+        else
+          Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.end, spacing: 16, runSpacing: 12, children: [
+            Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Semantics(header: true, child: Text(tr('Check-in tablet'), style: t.headlineMedium)),
+            ]),
+            if (_unlocked) FilledButton.icon(onPressed: widget.onLock, icon: const Icon(Icons.fullscreen), label: Text(tr('Full screen'))),
+          ]),
         const SizedBox(height: 20),
         Center(
           child: Container(
             constraints: const BoxConstraints(maxWidth: 440),
             padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.line)),
-            child: body,
+            child: widget.locked || _unlocked ? body : _gate(c, t),
           ),
         ),
       ]),
     );
   }
+
+  /// Before the tablet runs: the PIN, or how to set one.
+  Widget _gate(CfColors c, TextTheme t) => FutureBuilder<bool>(
+        future: _pinSet,
+        builder: (context, snap) {
+          if (!snap.hasData) return const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()));
+          if (!snap.data!) {
+            return Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.lock_outline, size: 36, color: c.muted),
+              const SizedBox(height: 12),
+              Text(tr('Set a tablet PIN first'), style: t.headlineSmall, textAlign: TextAlign.center),
+              const SizedBox(height: 6),
+              Text(tr('A clinic admin sets it in Settings.'),
+                  style: t.bodyMedium?.copyWith(color: c.muted), textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              TextButton(onPressed: () => setState(() => _pinSet = widget.desk.kioskPinSet()), child: Text(tr('I’ve set it, check again'))),
+            ]);
+          }
+          return PinEntry(
+            desk: widget.desk,
+            title: tr('Start the check-in tablet'),
+            note: tr('Then press Full screen to hand the tablet to patients.'),
+            onOk: () {
+              setState(() => _unlocked = true);
+              _focus.requestFocus();
+            },
+          );
+        },
+      );
 }

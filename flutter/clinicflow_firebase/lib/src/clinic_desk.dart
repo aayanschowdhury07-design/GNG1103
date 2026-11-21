@@ -1,7 +1,11 @@
 import 'dart:async';
 
 import 'package:clinicflow_core/clinicflow_core.dart';
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
 import 'clinic_setup.dart';
@@ -425,8 +429,8 @@ class ClinicDesk extends ChangeNotifier {
         'detail': detail,
       }).then((_) {}, onError: (Object e) => debugPrint('audit not written: $e'));
 
-  /// Queues a message. Cloud Functions will send it by push, text or email and record how it went.
-  Future<void> _send(String to, String message, String channel, [String? appointmentId]) => _clinic.collection('outbox').add({
+  /// Queues a message. The sendQueued Cloud Function sends it by text and records how it went.
+  Future<void> _send(String to, String message, String channel, [String? appointmentId, Map<String, Object?> extra = const {}]) => _clinic.collection('outbox').add({
         'at': FieldValue.serverTimestamp(),
         'by': me.uid,
         'to': to,
@@ -434,6 +438,7 @@ class ClinicDesk extends ChangeNotifier {
         'channel': channel,
         'appointmentId': appointmentId,
         'status': 'queued',
+        ...extra,
       });
 
   /// Moves a visit along: Checked in, Waiting, In visit, Complete, or No-show.
@@ -595,7 +600,9 @@ class ClinicDesk extends ChangeNotifier {
       })
       ..update(_clinic.collection('waitlist').doc(w.uid), {'offer': {'clinicianId': f.clinicianId, 'date': f.date, 'minute': f.minute, 'expiresAt': expires}});
     await batch.commit();
-    await _send(w.name, 'Waitlist offer: ${_when(f.date, f.minute)}', 'Push and text');
+    // the text is about the freed time; appointmentId says whose visit (and phone) it is
+    await _send(w.name, 'Waitlist offer: ${_when(f.date, f.minute)}', 'Push and text', w.appointmentId,
+        {'offer': {'clinicianId': f.clinicianId, 'date': f.date, 'minute': f.minute, 'holdMinutes': holdMinutes}});
     await _audit('waitlist.offer', w.uid, '${w.name} · ${_when(f.date, f.minute)} · held $holdMinutes min');
   }
 
@@ -658,6 +665,38 @@ class ClinicDesk extends ChangeNotifier {
   Future<void> removeStaff(StaffMember s) async {
     await _clinic.collection('staff').doc(s.uid).delete();
     await _audit('user.removed', s.uid, s.name);
+  }
+
+  /// Switches one of the clinic's optional features (see clinicFeatures) on or off.
+  Future<void> setFeature(String key, bool on) async {
+    await _clinic.update({'features.$key': on});
+    await _audit('settings.feature', 'CLINIC', '${clinicFeatures[key]?.$1 ?? key}: ${on ? 'on' : 'off'}');
+  }
+
+  /// Shows or hides the clinic in the patient app's directory (its booking link keeps working).
+  Future<void> setListed(bool on) async {
+    await _clinic.update({'listed': on});
+    await _audit('settings.update', 'CLINIC', 'Listed in the patient directory: ${on ? 'yes' : 'no'}');
+  }
+
+  // ---------------------------------------------------------------- check-in tablet PIN
+  DocumentReference<Map<String, dynamic>> get _kiosk => _clinic.collection('private').doc('kiosk');
+  static String _hash(String salt, String pin) => sha256.convert(utf8.encode('$salt:$pin')).toString();
+
+  /// Whether an admin has set the tablet PIN yet.
+  Future<bool> kioskPinSet() async => (await _kiosk.get()).data()?['pinHash'] != null;
+
+  /// Sets the PIN that opens the check-in tablet and takes it out of full screen.
+  Future<void> setKioskPin(String pin) async {
+    final r = Random.secure(), salt = base64Url.encode([for (var i = 0; i < 16; i++) r.nextInt(256)]);
+    await _kiosk.set({'pinHash': _hash(salt, pin), 'salt': salt, 'setBy': me.uid, 'setAt': FieldValue.serverTimestamp()});
+    await _audit('settings.kioskPin', 'CLINIC', 'Check-in tablet PIN changed');
+  }
+
+  /// Whether [pin] is the tablet PIN. False if none is set.
+  Future<bool> checkKioskPin(String pin) async {
+    final d = (await _kiosk.get()).data();
+    return d != null && d['pinHash'] == _hash('${d['salt']}', pin);
   }
 
   Future<void> record(String action, String record, String detail) => _audit(action, record, detail);

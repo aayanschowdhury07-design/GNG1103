@@ -46,6 +46,8 @@ service cloud.firestore {
     function isPlatformAdmin() { return verifiedEmail() && exists(/databases/$(database)/documents/platformAdmins/$(request.auth.uid)); }
     function approval(data) { return data.get('approval', 'draft'); }
     function approved(clinicId) { return approval(get(clinicPath(clinicId)).data) == 'approved'; }
+    // an optional feature the clinic's admin can switch off in Settings; on unless set to false
+    function featureOn(clinicId, name) { return get(clinicPath(clinicId)).data.get('features', {}).get(name, true) != false; }
 
     // the ClinicFlow team: each member can see their own record; it's only ever added from the console
     match /platformAdmins/{uid} {
@@ -164,7 +166,8 @@ service cloud.firestore {
       // the waiting-room queue: ticket numbers only, one list per day ({date}_{ticket})
       match /queue/{entry} {
         allow read: if true;
-        allow create: if (patient() || canAct(clinicId)) && request.resource.data.status == 'checkedIn'
+        // a patient checks in from their phone only if the clinic uses phone check-in
+        allow create: if ((patient() && featureOn(clinicId, 'phoneCheckIn')) || canAct(clinicId)) && request.resource.data.status == 'checkedIn'
           && entry == request.resource.data.date + '_' + request.resource.data.ticket;
         allow update: if canAct(clinicId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
         allow delete: if false;
@@ -178,7 +181,8 @@ service cloud.firestore {
       // it, flags priority and records an offer
       match /waitlist/{uid} {
         allow read: if runsDay(clinicId) || (patient() && uid == request.auth.uid);
-        allow create, delete: if patient() && uid == request.auth.uid;
+        allow create: if patient() && uid == request.auth.uid && featureOn(clinicId, 'waitlist');
+        allow delete: if patient() && uid == request.auth.uid;
         allow update: if (patient() && uid == request.auth.uid)
           || (runsDay(clinicId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['priority', 'offer']));
       }
@@ -203,6 +207,10 @@ service cloud.firestore {
 
       // message wording, in English and French
       match /templates/{id} { allow read: if isStaff(clinicId); allow write: if isAdmin(clinicId); }
+
+      // staff-only settings that must not be public like the clinic document: the check-in
+      // tablet's PIN, stored only as a salted hash
+      match /private/{id} { allow read: if isStaff(clinicId); allow write: if isAdmin(clinicId); }
     }
 
     // the same records reached through collection-group queries

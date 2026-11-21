@@ -1,0 +1,14 @@
+{
+  "name": "clinicflow-functions",
+  "private": true,
+  "description": "ClinicFlow's Cloud Functions: confirmations, reminders and waitlist offers by text",
+  "main": "index.js",
+  "engines": { "node": "22" },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.4.0",
+    "firebase-functions": "^6.4.0"
+  }
+}

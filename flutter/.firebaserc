@@ -6,7 +6,12 @@
   "targets": {
     "clinicflow-9e598": {
       "hosting": {
-        "staff": ["clinicflow-staff"]
+        "patient": [
+          "clinicflow-9e598"
+        ],
+        "staff": [
+          "clinicflow-staff"
+        ]
       }
     }
   }

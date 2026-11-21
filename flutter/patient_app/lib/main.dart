@@ -5,6 +5,8 @@ import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
+import 'role_choice.dart';
+import 'screens/welcome.dart';
 import 'scope.dart';
 import 'screens/account.dart';
 import 'screens/booking.dart';
@@ -67,11 +69,34 @@ class PatientApp extends StatelessWidget {
             minScaleFactor: session.largeText ? 1.2 : 1,
             child: _DemoFrame(child: child!),
           ),
-          home: Shell(linkedClinic: linkedClinic),
+          home: _Start(linkedClinic: linkedClinic),
         ),
       ),
     );
   }
+}
+
+/// The first screen asks patient or staff, once per device; a clinic's booking link skips it.
+class _Start extends StatefulWidget {
+  const _Start({this.linkedClinic});
+  final String? linkedClinic;
+  @override
+  State<_Start> createState() => _StartState();
+}
+
+class _StartState extends State<_Start> {
+  late bool _patient = widget.linkedClinic != null || (!forceChooser && savedRole() == 'patient');
+
+  @override
+  void initState() {
+    super.initState();
+    // staff who chose the staff app before go straight back to it
+    if (!_patient && !forceChooser && savedRole() == 'staff') openStaffApp();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _patient ? Shell(linkedClinic: widget.linkedClinic) : WelcomeScreen(onPatient: () => setState(() => _patient = true));
 }
 
 /// Home, Book, Clinics, Alerts and Profile tabs.

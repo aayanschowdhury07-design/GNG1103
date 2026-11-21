@@ -139,8 +139,16 @@ class Clinic {
     this.notice,
     this.listed = true,
     this.bookable = true,
+    this.off = const {},
   });
   final String id, initials, name, address;
+
+  /// The optional features the clinic's admin switched off in Settings (see [clinicFeatures]).
+  /// Everything is on unless listed here.
+  final Set<String> off;
+
+  /// Whether this clinic uses [feature], one of the keys of [clinicFeatures].
+  bool has(String feature) => !off.contains(feature);
 
   /// In the directory: set up, approved by ClinicFlow and opted in. A visit at a clinic
   /// that isn't (any more) still shows the clinic's details to the patient who booked it.
@@ -165,8 +173,21 @@ class Clinic {
 
   Clinic withHome(bool home) => home == isHome
       ? this
-      : Clinic(id: id, initials: initials, name: name, address: address, kind: kind, lat: lat, lng: lng, accepting: accepting, isHome: home, notice: notice, listed: listed, bookable: bookable);
+      : Clinic(id: id, initials: initials, name: name, address: address, kind: kind, lat: lat, lng: lng, accepting: accepting, isHome: home, notice: notice, listed: listed, bookable: bookable, off: off);
 }
+
+/// The optional features a clinic admin can switch on or off in Settings, with the label and
+/// explanation shown there. All are on for a new clinic. The patient app hides what a clinic
+/// switched off, and the security rules refuse it (waitlist, phone check-in).
+const clinicFeatures = <String, (String, String)>{
+  'phoneCheckIn': ('Phone check-in', 'Patients tap "I’m here" in the app from 60 minutes before their visit. Off: they check in at the front desk.'),
+  'locationCheck': ('Location check at check-in', 'Phone check-in opens within 200 m of the clinic, if the patient shares their location.'),
+  'kiosk': ('Check-in tablet', 'A tablet at the front desk where patients check in with the last 4 digits of their phone number.'),
+  'waitlist': ('Waitlist', 'Patients ask to be offered an earlier time, and freed times are offered to them.'),
+  'intakeForm': ('Reason-for-visit form', 'Patients fill in a short form before the visit. Off: no form is asked for.'),
+  'family': ('Booking for family members', 'A patient can book for a child or someone they care for.'),
+  'missed': ('Missed-visit follow-up', 'A page listing no-shows, to contact them and rebook.'),
+};
 
 class Clinician {
   const Clinician({
@@ -304,6 +325,16 @@ class BookingResult {
 /// Thrown when a phone number already has two unconfirmed bookings today.
 class RateLimitException implements Exception {
   const RateLimitException();
+}
+
+/// Why a text code couldn't be sent, so the app can say what to do about it.
+enum CodeProblem { badNumber, tooMany, unavailable, network }
+
+class CodeSendException implements Exception {
+  const CodeSendException(this.problem);
+  final CodeProblem problem;
+  @override
+  String toString() => 'CodeSendException(${problem.name})';
 }
 
 // ---------------------------------------------------------------- the patient's own records
