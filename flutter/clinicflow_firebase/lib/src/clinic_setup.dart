@@ -114,9 +114,15 @@ class ClinicSetup extends ChangeNotifier {
     _authSub = _auth.authStateChanges().listen((u) async {
       loading = true;
       notifyListeners();
-      await _findClinic(u);
-      loading = false;
-      notifyListeners();
+      try {
+        await _findClinic(u);
+      } catch (e) {
+        // never leave the app on the loading screen: it shows sign-in or "no clinic" instead
+        debugPrint('finding the clinic failed: $e');
+      } finally {
+        loading = false;
+        notifyListeners();
+      }
     });
   }
 
@@ -126,7 +132,9 @@ class ClinicSetup extends ChangeNotifier {
     pendingInvites = const [];
     review?.dispose();
     review = null;
-    if (u == null || u.isAnonymous) return;
+    // patients sign in by phone and have no email: they aren't staff anywhere, and the rules
+    // refuse them the staff lookup (the patient and staff apps share a sign-in on one site)
+    if (u == null || u.isAnonymous || (u.email ?? '').isEmpty) return;
     // the ClinicFlow team (added from the Firebase console) reviews clinics
     if (u.emailVerified) {
       try {
