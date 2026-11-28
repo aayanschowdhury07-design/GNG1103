@@ -6,6 +6,8 @@
 //   bookingConfirmed   a patient booked in the app: queue their confirmation
 //   visitCancelled     a time was freed: offer it to the next person on the clinic's waitlist
 //   sendReminders      every 15 minutes: reminders 48 h and 24 h before each visit
+//   deleteOldVisits    every night: visits more than 12 months old are deleted, with their
+//                      texts (the privacy notice at /privacy/ promises this)
 //
 // They run in Toronto, next to the database, so patient data stays in Canada. On the local
 // emulators no text is sent: the message is written to the log instead.
@@ -81,7 +83,7 @@ async function details(clinicRef, appt) {
       clinic: clinic.get('name') || 'the clinic',
       date: appt.date ? m.shortDate(appt.date) : '',
       time: typeof appt.minute === 'number' ? m.formatTime(appt.minute) : '',
-      link: m.PATIENT_APP,
+      link: `${m.PATIENT_APP}/app`, // the app itself; the site's root is the homepage
     },
   };
 }
@@ -202,4 +204,35 @@ exports.sendReminders = onSchedule({ schedule: 'every 15 minutes', timeZone: m.T
     sent++;
   }
   logger.info(`reminders queued: ${sent} of ${visits.size} visits checked`);
+});
+
+// ---------------------------------------------------------------- retention
+// Visit records are kept for 12 months after the visit (privacy notice, /privacy/). Each night
+// every older visit is deleted together with its "taken" marker and the texts sent about it.
+// The audit log is kept: it records who did what, for accountability.
+const KEEP_MONTHS = 12;
+const PAGE = 100;
+
+exports.deleteOldVisits = onSchedule({ schedule: 'every day 03:30', timeZone: m.TIME_ZONE, timeoutSeconds: 540 }, async () => {
+  const cutoff = m.retentionCutoff(Date.now(), KEEP_MONTHS);
+  let visits = 0, texts = 0;
+  for (let page = 0; page < 50; page++) { // at most 5,000 a night; the rest the next night
+    const old = await db.collectionGroup('appointments').where('date', '<', cutoff).limit(PAGE).get();
+    if (old.empty) break;
+    const writer = db.bulkWriter();
+    for (const doc of old.docs) {
+      const a = doc.data(), clinicRef = doc.ref.parent.parent;
+      const sent = await clinicRef.collection('outbox').where('appointmentId', '==', doc.id).get();
+      sent.docs.forEach((t) => writer.delete(t.ref));
+      texts += sent.size;
+      const slot = clinicRef.collection('slots').doc(`${a.clinicianId}_${a.date}_${a.minute}`);
+      const marker = await slot.get();
+      if (marker.exists && marker.get('appointmentId') === doc.id) writer.delete(slot);
+      writer.delete(doc.ref);
+    }
+    await writer.close();
+    visits += old.size;
+    if (old.size < PAGE) break;
+  }
+  logger.info(`retention: deleted ${visits} visits and ${texts} texts dated before ${cutoff}`);
 });

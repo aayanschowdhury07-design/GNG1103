@@ -2,8 +2,12 @@ import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:web/web.dart' as web;
 
 import 'l10n.dart';
+
+/// The privacy notice, on the patient site (it covers staff accounts too).
+const privacyNoticeUrl = 'https://clinicflow-9e598.web.app/privacy/';
 
 /// Staff sign-in, and sign-up for someone setting up a new clinic.
 class AuthScreen extends StatefulWidget {
@@ -131,6 +135,12 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   if (!_creating) TextButton(onPressed: _reset, child: Text(tr('Forgot password'))),
                 ]),
+                Center(
+                  child: TextButton(
+                    onPressed: () => web.window.open('$privacyNoticeUrl?lang=$lang', '_blank'),
+                    child: Text(tr('Privacy notice')),
+                  ),
+                ),
               ]),
             ),
           ),

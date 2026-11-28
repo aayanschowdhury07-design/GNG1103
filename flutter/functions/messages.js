@@ -35,6 +35,12 @@ function clinicDate(ms = Date.now(), plusDays = 0) {
   return d.toISOString().slice(0, 10);
 }
 
+/** Visits dated before this are past the retention period: "2025-11-27" on 2026-11-27 for 12 months. */
+function retentionCutoff(ms = Date.now(), months = 12) {
+  const [y, mo, d] = clinicDate(ms).split('-').map(Number);
+  return new Date(Date.UTC(y, mo - 1 - months, d)).toISOString().slice(0, 10);
+}
+
 /** "Mon", "Tue"... for a date, as the waitlist stores the days a patient can come. */
 function weekday(date) {
   const [y, m, d] = date.split('-').map(Number);
@@ -139,6 +145,6 @@ function pickFromWaitlist(entries, freed, now = Date.now()) {
 
 module.exports = {
   TIME_ZONE, PATIENT_APP, DEFAULT_TEMPLATES, LABELS,
-  visitTime, clinicDate, weekday, dayPart, shortDate, formatTime,
+  visitTime, clinicDate, retentionCutoff, weekday, dayPart, shortDate, formatTime,
   kindOf, reasonOf, fill, e164, masked, pickFromWaitlist,
 };

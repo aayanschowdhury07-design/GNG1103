@@ -178,6 +178,14 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                   ),
                 ),
+                if (canOpenPatientApp)
+                  Center(
+                    child: TextButton(
+                      style: TextButton.styleFrom(foregroundColor: Portal.sideInk),
+                      onPressed: () => openPrivacy(staffLang.value),
+                      child: Text(tr('Privacy notice')),
+                    ),
+                  ),
               ]),
             ),
           ),

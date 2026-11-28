@@ -5,8 +5,6 @@ import 'package:clinicflow_firebase/clinicflow_firebase.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
-import 'role_choice.dart';
-import 'screens/welcome.dart';
 import 'scope.dart';
 import 'screens/account.dart';
 import 'screens/booking.dart';
@@ -34,7 +32,10 @@ Future<void> main() async {
     'emulator' => await FirebaseBackend.startEmulators(clock: clock),
     _ => DemoBackend(),
   };
-  runApp(PatientApp(backend: backend, session: PatientSession(), linkedClinic: linkedClinic()));
+  // the homepage passes its language on (…/app?lang=fr)
+  final session = PatientSession();
+  if (Uri.base.queryParameters['lang'] == 'fr') session.setLang('fr');
+  runApp(PatientApp(backend: backend, session: session, linkedClinic: linkedClinic()));
 }
 
 /// A clinic's booking link opens the app at …/c/{clinicId}: straight to booking there.
@@ -42,6 +43,10 @@ String? linkedClinic() {
   final p = Uri.base.pathSegments;
   return p.length >= 2 && p[0] == 'c' && p[1].isNotEmpty ? p[1] : null;
 }
+
+/// The tab the homepage's buttons ask for: …/app?tab=book or ?tab=clinics. Sign in (and
+/// anything else) opens Home, which asks a signed-out patient to sign in.
+int startTab() => switch (Uri.base.queryParameters['tab']) { 'book' => 1, 'clinics' => 2, _ => 0 };
 
 class PatientApp extends StatelessWidget {
   const PatientApp({super.key, required this.backend, required this.session, this.linkedClinic});
@@ -69,34 +74,12 @@ class PatientApp extends StatelessWidget {
             minScaleFactor: session.largeText ? 1.2 : 1,
             child: _DemoFrame(child: child!),
           ),
-          home: _Start(linkedClinic: linkedClinic),
+          // patient or staff is chosen on the homepage (web/index.html), so the app opens straight in
+          home: Shell(linkedClinic: linkedClinic),
         ),
       ),
     );
   }
-}
-
-/// The first screen asks patient or staff, once per device; a clinic's booking link skips it.
-class _Start extends StatefulWidget {
-  const _Start({this.linkedClinic});
-  final String? linkedClinic;
-  @override
-  State<_Start> createState() => _StartState();
-}
-
-class _StartState extends State<_Start> {
-  late bool _patient = widget.linkedClinic != null || (!forceChooser && savedRole() == 'patient');
-
-  @override
-  void initState() {
-    super.initState();
-    // staff who chose the staff app before go straight back to it
-    if (!_patient && !forceChooser && savedRole() == 'staff') openStaffApp();
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      _patient ? Shell(linkedClinic: widget.linkedClinic) : WelcomeScreen(onPatient: () => setState(() => _patient = true));
 }
 
 /// Home, Book, Clinics, Alerts and Profile tabs.
@@ -125,6 +108,7 @@ class _ShellState extends State<Shell> {
       _tab = 1;
     } else {
       context.draft.start(b, BookingDraft.defaultClinic(b));
+      _tab = startTab();
     }
   }
 

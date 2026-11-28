@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="How ClinicFlow handles patient and clinic staff information, in plain language.">
+  <meta name="theme-color" content="#FAFAF8">
+  <link rel="icon" type="image/png" href="../favicon.png"/>
+  <title>Privacy notice · ClinicFlow</title>
+
+  <!--
+    The privacy notice, served at /privacy/. Linked from the home screen, the patient app
+    (booking, sign-in, profile), the staff app and the staff website.
+    Keep it true: every line here must match what the apps and Cloud Functions actually do.
+    English and French are two copies of the same text; change both.
+  -->
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" media="print" onload="this.media='all'">
+
+  <style>
+    /* the home screen's palette (patient_app/web/index.html), so the two pages match */
+    :root {
+      --bg: #FAFAF8; --surface: #FFFFFF; --surface2: #F3F4F2;
+      --line: #E5E6E2; --line-strong: #888C94; --fg: #1C2128; --muted: #5E6570;
+      --accent: #3C649F; --accent-soft: #EDF2F9; --accent-fg: #FFFFFF;
+      --warn-soft: #FBF3E4; --warn: #8A5A12;
+      --hero: #2C4C7C; --hero-fg: #FFFFFF;
+      --serif: 'Source Serif 4', Georgia, serif;
+      --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #121417; --surface: #1A1D22; --surface2: #22262C;
+        --line: #2E333A; --line-strong: #6F757D; --fg: #E8EAED; --muted: #9BA2AD;
+        --accent: #8FB0E3; --accent-soft: #1F2B3D; --accent-fg: #101722;
+        --warn-soft: #2E2615; --warn: #E2BE7C;
+        --hero: #24395A; --hero-fg: #EEF2F8;
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); }
+    body { font: 400 15px/1.55 var(--sans); color: var(--fg); -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    ul { list-style: none; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+    [hidden] { display: none !important; }
+
+    /* the phone: full screen on a phone; a phone-sized frame on a computer */
+    #page { height: 100%; }
+    .phone { position: relative; height: 100%; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; }
+    .scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+    .scroll::-webkit-scrollbar { display: none; }
+    @media (min-width: 600px) {
+      body { background: var(--surface2); }
+      #page { display: grid; place-items: center; padding: 16px; }
+      .phone { width: 412px; height: min(880px, 100%); border-radius: 32px; border: 1px solid var(--line); box-shadow: 0 12px 32px rgba(0, 0, 0, .08); }
+    }
+
+    .bar { flex: none; height: 60px; padding: 0 12px 0 8px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); }
+    .back { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 10px; border-radius: 10px; color: var(--fg); text-decoration: none; font: 500 14px/1 var(--sans); margin-right: auto; }
+    .back:hover { background: var(--surface2); }
+    .back svg { width: 20px; height: 20px; }
+    .icon { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .lang { background: none; border: 0; color: var(--muted); font: 500 13px/1 var(--sans); min-height: 44px; padding: 0 10px; cursor: pointer; border-radius: 8px; }
+    .lang:hover { color: var(--fg); }
+
+    article { padding: 26px 20px 32px; }
+    .eyebrow { font: 600 11.5px/1.3 var(--sans); text-transform: uppercase; letter-spacing: 0.09em; color: var(--accent); }
+    h1 { font: 500 32px/1.1 var(--serif); letter-spacing: -0.02em; margin-top: 8px; }
+    .updated { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+    .proto { margin-top: 18px; padding: 14px 16px; border-radius: 14px; background: var(--warn-soft); color: var(--fg); font-size: 14px; }
+    .proto b { color: var(--warn); font-weight: 600; display: block; margin-bottom: 2px; }
+
+    .short { margin-top: 14px; background: var(--hero); color: var(--hero-fg); border-radius: 16px; padding: 18px; }
+    .short h2 { font: 500 19px/1.2 var(--serif); margin: 0 0 6px; padding: 0; border: 0; color: inherit; }
+    .short li { padding: 8px 0 8px 22px; position: relative; font-size: 14.5px; border-top: 1px solid rgba(255, 255, 255, .14); }
+    .short li::before { content: ''; position: absolute; left: 2px; top: 15px; width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .7; }
+
+    section { margin-top: 30px; }
+    h2 { font: 500 21px/1.2 var(--serif); letter-spacing: -0.01em; padding-top: 4px; }
+    h3 { font-size: 14.5px; font-weight: 600; margin-top: 14px; }
+    section p { margin-top: 8px; color: var(--fg); }
+    section .muted { color: var(--muted); font-size: 14px; }
+    section ul { margin-top: 8px; }
+    section li { padding: 5px 0 5px 18px; position: relative; }
+    section li::before { content: ''; position: absolute; left: 2px; top: 14px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    section li b { font-weight: 600; }
+
+    .table { margin-top: 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+    .table div { display: flex; flex-direction: column; gap: 2px; padding: 11px 14px; border-top: 1px solid var(--line); }
+    .table div:first-child { border-top: 0; }
+    .table dt { color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .table dd { font-weight: 600; font-size: 14.5px; }
+
+    .contact { margin-top: 12px; display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 20px; border-radius: 10px; background: var(--accent); color: var(--accent-fg); font: 600 15px/1 var(--sans); text-decoration: none; }
+    .contact:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+
+    .foot { padding: 4px 20px 28px; color: var(--muted); font-size: 12.5px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="page">
+    <div class="phone">
+      <header class="bar">
+        <a class="back" href="../" data-back><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span data-en>ClinicFlow</span></a>
+        <button class="lang" type="button" data-lang lang="fr" aria-label="Français">FR</button>
+      </header>
+
+      <main class="scroll">
+        <!-- ============================================================ English -->
+        <article lang="en" data-copy="en">
+          <p class="eyebrow">Privacy</p>
+          <h1>Privacy notice</h1>
+          <p class="updated">Last updated November 27, 2026</p>
+
+          <div class="proto" role="note"><b>A student prototype</b>ClinicFlow is a design project by Group 16 at the University of Ottawa. It isn’t used for real medical care yet. Please don’t enter symptoms or other health details.</div>
+
+          <div class="short">
+            <h2>In short</h2>
+            <ul>
+              <li>We collect only what booking needs: your name, mobile number and your visits.</li>
+              <li>We never store medical records, never sell your information and never show ads.</li>
+              <li>Patient records are stored in Toronto, Canada.</li>
+              <li>Visit records are deleted automatically 12 months after the visit.</li>
+            </ul>
+          </div>
+
+          <section aria-labelledby="en-who">
+            <h2 id="en-who">Who we are</h2>
+            <p>ClinicFlow is a booking and check-in service for clinics, built by Group 16 at the University of Ottawa.</p>
+            <p>When you book with a clinic, that clinic is responsible for your information. ClinicFlow is the service that holds it for the clinic. ClinicFlow isn’t the clinic’s medical record; the clinic keeps that in its own system.</p>
+          </section>
+
+          <section aria-labelledby="en-what">
+            <h2 id="en-what">What we collect</h2>
+            <h3>If you book a visit</h3>
+            <ul>
+              <li><b>Your name and mobile number.</b> Your number is how you sign in, with a one-time code.</li>
+              <li><b>Your email</b>, only if you add one.</li>
+              <li><b>Your visits:</b> the clinic, service, clinician, date and time, and whether you checked in.</li>
+              <li><b>Optional notes before a visit:</b> the type of visit and anything that would make it easier, like a ground-floor room. Please don’t include symptoms.</li>
+              <li><b>Family members you add:</b> their name, relationship and, if you give it, birth date.</li>
+              <li><b>Your choices:</b> language, whether you agreed to texts and when, and any waitlist you join.</li>
+            </ul>
+            <h3>If you work at a clinic</h3>
+            <ul>
+              <li>Your name, work email, role and clinic.</li>
+              <li>An activity log of actions on the staff website, such as who booked or cancelled a visit.</li>
+            </ul>
+            <h3>What we don’t collect</h3>
+            <ul>
+              <li>Medical records, symptoms or diagnoses.</li>
+              <li>Health card numbers or payment card numbers.</li>
+              <li>Your location. If you let the app use it, it only sorts clinics by distance on your phone and isn’t saved.</li>
+            </ul>
+          </section>
+
+          <section aria-labelledby="en-use">
+            <h2 id="en-use">How we use it</h2>
+            <ul>
+              <li>To book, move and cancel your visits.</li>
+              <li>To send confirmations, reminders and waitlist offers by text, only if you agree.</li>
+              <li>To check you in. The waiting-room screen shows ticket numbers or initials, never full names.</li>
+              <li>To keep the service secure, for example by limiting unconfirmed bookings per phone number.</li>
+            </ul>
+            <p>We don’t sell or rent your information, and we don’t use it for ads or marketing.</p>
+          </section>
+
+          <section aria-labelledby="en-see">
+            <h2 id="en-see">Who can see it</h2>
+            <ul>
+              <li><b>You</b> see your own visits and details.</li>
+              <li><b>The clinic you booked with</b>, by role: the front desk and admins see the day’s visits, a clinician sees only their own patients, and support staff see only the queue. Other clinics never see your visits.</li>
+              <li><b>Our team</b>, only to run and fix the service.</li>
+              <li><b>Our service providers</b>, who handle data for us: Google Firebase (database, sign-in and hosting) and Twilio (text messages).</li>
+            </ul>
+            <p>We share information with anyone else only if the law requires it.</p>
+          </section>
+
+          <section aria-labelledby="en-where">
+            <h2 id="en-where">Where it’s stored</h2>
+            <dl class="table">
+              <div><dt>Patient records (database)</dt><dd>Toronto, Canada</dd></div>
+              <div><dt>Server functions that send texts</dt><dd>Toronto, Canada</dd></div>
+              <div><dt>Sign-in accounts (phone number, work email)</dt><dd>United States</dd></div>
+              <div><dt>Text messages</dt><dd>United States</dd></div>
+            </dl>
+            <p class="muted">Sign-in is handled by Firebase Authentication and texts by Twilio, both outside Canada. Information handled in another country can be accessed by authorities there under its laws.</p>
+          </section>
+
+          <section aria-labelledby="en-texts">
+            <h2 id="en-texts">Text messages</h2>
+            <p>We text you only if you agree. You can turn texts off at any time in Profile, or reply STOP to any message. Message rates may apply.</p>
+          </section>
+
+          <section aria-labelledby="en-keep">
+            <h2 id="en-keep">How long we keep it</h2>
+            <dl class="table">
+              <div><dt>Visits and their text messages</dt><dd>12 months after the visit</dd></div>
+              <div><dt>Your account, family members and choices</dt><dd>Until you ask us to delete them</dd></div>
+              <div><dt>Staff accounts and the activity log</dt><dd>While the clinic uses ClinicFlow</dd></div>
+            </dl>
+          </section>
+
+          <section aria-labelledby="en-safe">
+            <h2 id="en-safe">How we protect it</h2>
+            <ul>
+              <li>Every connection is encrypted, and data is encrypted where it’s stored.</li>
+              <li>Security rules on the server check every request, so each person sees only what their role needs.</li>
+              <li>Patients sign in with a one-time code, so there’s no password to leak. Staff join a clinic only by invitation.</li>
+              <li>An activity log records who did what on the staff website.</li>
+            </ul>
+          </section>
+
+          <section aria-labelledby="en-rights">
+            <h2 id="en-rights">Your choices</h2>
+            <ul>
+              <li>See and correct your name and email in Profile.</li>
+              <li>Ask for a copy of your information, or ask us to delete your account. Use Profile or email us. We reply within 30 days.</li>
+              <li>Withdraw your consent to texts at any time.</li>
+            </ul>
+            <p>If you’re not satisfied with our answer, you can contact the <a href="https://www.priv.gc.ca" rel="noopener">Office of the Privacy Commissioner of Canada</a> or, in Ontario, the <a href="https://www.ipc.on.ca" rel="noopener">Information and Privacy Commissioner of Ontario</a>.</p>
+          </section>
+
+          <section aria-labelledby="en-contact">
+            <h2 id="en-contact">Contact us</h2>
+            <p>Questions, requests or concerns about your information: Group 16, University of Ottawa.</p>
+            <a class="contact" href="mailto:achow021@uottawa.ca?subject=ClinicFlow%20privacy">achow021@uottawa.ca</a>
+          </section>
+
+          <section aria-labelledby="en-changes">
+            <h2 id="en-changes">Changes</h2>
+            <p>When this notice changes, we update this page and the date at the top. Before ClinicFlow is used for real care, it will go through a formal privacy assessment.</p>
+          </section>
+        </article>
+
+        <!-- ============================================================ Français -->
+        <article lang="fr" data-copy="fr" hidden>
+          <p class="eyebrow">Confidentialité</p>
+          <h1>Avis de confidentialité</h1>
+          <p class="updated">Dernière mise à jour : 27 novembre 2026</p>
+
+          <div class="proto" role="note"><b>Un prototype étudiant</b>ClinicFlow est un projet de conception du Groupe 16 de l’Université d’Ottawa. Il n’est pas encore utilisé pour de vrais soins. N’indiquez pas de symptômes ni d’autres détails de santé.</div>
+
+          <div class="short">
+            <h2>En bref</h2>
+            <ul>
+              <li>Nous recueillons seulement ce qu’il faut pour réserver : votre nom, votre numéro de cellulaire et vos rendez-vous.</li>
+              <li>Nous ne stockons jamais de dossiers médicaux, ne vendons jamais vos renseignements et n’affichons jamais de publicité.</li>
+              <li>Les dossiers des patients sont stockés à Toronto, au Canada.</li>
+              <li>Les dossiers de rendez-vous sont supprimés automatiquement 12 mois après le rendez-vous.</li>
+            </ul>
+          </div>
+
+          <section aria-labelledby="fr-who">
+            <h2 id="fr-who">Qui nous sommes</h2>
+            <p>ClinicFlow est un service de réservation et d’accueil pour les cliniques, conçu par le Groupe 16 de l’Université d’Ottawa.</p>
+            <p>Quand vous réservez auprès d’une clinique, cette clinique est responsable de vos renseignements. ClinicFlow est le service qui les conserve pour elle. ClinicFlow n’est pas le dossier médical de la clinique; la clinique le tient dans son propre système.</p>
+          </section>
+
+          <section aria-labelledby="fr-what">
+            <h2 id="fr-what">Ce que nous recueillons</h2>
+            <h3>Si vous prenez rendez-vous</h3>
+            <ul>
+              <li><b>Votre nom et votre numéro de cellulaire.</b> Votre numéro sert à vous connecter, avec un code à usage unique.</li>
+              <li><b>Votre courriel</b>, seulement si vous l’ajoutez.</li>
+              <li><b>Vos rendez-vous :</b> la clinique, le service, le professionnel, la date et l’heure, et si vous vous êtes enregistré.</li>
+              <li><b>Des notes facultatives avant un rendez-vous :</b> le type de visite et ce qui la faciliterait, comme une salle au rez-de-chaussée. N’indiquez pas de symptômes.</li>
+              <li><b>Les proches que vous ajoutez :</b> leur nom, leur lien avec vous et, si vous l’indiquez, leur date de naissance.</li>
+              <li><b>Vos choix :</b> la langue, si vous avez accepté les textos et quand, et les listes d’attente auxquelles vous vous inscrivez.</li>
+            </ul>
+            <h3>Si vous travaillez dans une clinique</h3>
+            <ul>
+              <li>Votre nom, votre courriel professionnel, votre rôle et votre clinique.</li>
+              <li>Un journal des actions sur le site du personnel, par exemple qui a réservé ou annulé un rendez-vous.</li>
+            </ul>
+            <h3>Ce que nous ne recueillons pas</h3>
+            <ul>
+              <li>Les dossiers médicaux, les symptômes ou les diagnostics.</li>
+              <li>Les numéros de carte santé ou de carte de paiement.</li>
+              <li>Votre position. Si vous permettez à l’app de l’utiliser, elle sert seulement à trier les cliniques par distance sur votre téléphone et n’est pas enregistrée.</li>
+            </ul>
+          </section>
+
+          <section aria-labelledby="fr-use">
+            <h2 id="fr-use">Comment nous les utilisons</h2>
+            <ul>
+              <li>Pour réserver, déplacer et annuler vos rendez-vous.</li>
+              <li>Pour envoyer des confirmations, des rappels et des offres de la liste d’attente par texto, seulement si vous l’acceptez.</li>
+              <li>Pour vous enregistrer à votre arrivée. L’écran de la salle d’attente montre des numéros ou des initiales, jamais des noms complets.</li>
+              <li>Pour protéger le service, par exemple en limitant les réservations non confirmées par numéro de téléphone.</li>
+            </ul>
+            <p>Nous ne vendons ni ne louons vos renseignements, et nous ne les utilisons pas pour la publicité ou le marketing.</p>
+          </section>
+
+          <section aria-labelledby="fr-see">
+            <h2 id="fr-see">Qui peut les voir</h2>
+            <ul>
+              <li><b>Vous</b> voyez vos propres rendez-vous et coordonnées.</li>
+              <li><b>La clinique où vous avez réservé</b>, selon le rôle : l’accueil et l’administration voient les rendez-vous de la journée, un professionnel voit seulement ses propres patients et le personnel de soutien voit seulement la file. Les autres cliniques ne voient jamais vos rendez-vous.</li>
+              <li><b>Notre équipe</b>, seulement pour faire fonctionner et réparer le service.</li>
+              <li><b>Nos fournisseurs de services</b>, qui traitent les données pour nous : Google Firebase (base de données, connexion et hébergement) et Twilio (textos).</li>
+            </ul>
+            <p>Nous ne communiquons des renseignements à quelqu’un d’autre que si la loi l’exige.</p>
+          </section>
+
+          <section aria-labelledby="fr-where">
+            <h2 id="fr-where">Où ils sont stockés</h2>
+            <dl class="table">
+              <div><dt>Dossiers des patients (base de données)</dt><dd>Toronto, Canada</dd></div>
+              <div><dt>Fonctions serveur qui envoient les textos</dt><dd>Toronto, Canada</dd></div>
+              <div><dt>Comptes de connexion (numéro, courriel professionnel)</dt><dd>États-Unis</dd></div>
+              <div><dt>Textos</dt><dd>États-Unis</dd></div>
+            </dl>
+            <p class="muted">La connexion est gérée par Firebase Authentication et les textos par Twilio, tous deux à l’extérieur du Canada. Les renseignements traités dans un autre pays peuvent être consultés par les autorités de ce pays selon ses lois.</p>
+          </section>
+
+          <section aria-labelledby="fr-texts">
+            <h2 id="fr-texts">Textos</h2>
+            <p>Nous vous envoyons des textos seulement si vous l’acceptez. Vous pouvez les désactiver à tout moment dans Profil, ou répondre STOP à n’importe quel message. Des frais peuvent s’appliquer.</p>
+          </section>
+
+          <section aria-labelledby="fr-keep">
+            <h2 id="fr-keep">Combien de temps nous les gardons</h2>
+            <dl class="table">
+              <div><dt>Rendez-vous et leurs textos</dt><dd>12 mois après le rendez-vous</dd></div>
+              <div><dt>Votre compte, vos proches et vos choix</dt><dd>Jusqu’à ce que vous demandiez leur suppression</dd></div>
+              <div><dt>Comptes du personnel et journal des actions</dt><dd>Tant que la clinique utilise ClinicFlow</dd></div>
+            </dl>
+          </section>
+
+          <section aria-labelledby="fr-safe">
+            <h2 id="fr-safe">Comment nous les protégeons</h2>
+            <ul>
+              <li>Chaque connexion est chiffrée, et les données sont chiffrées là où elles sont stockées.</li>
+              <li>Des règles de sécurité sur le serveur vérifient chaque demande : chacun voit seulement ce dont son rôle a besoin.</li>
+              <li>Les patients se connectent avec un code à usage unique : aucun mot de passe à voler. Le personnel se joint à une clinique seulement sur invitation.</li>
+              <li>Un journal enregistre qui a fait quoi sur le site du personnel.</li>
+            </ul>
+          </section>
+
+          <section aria-labelledby="fr-rights">
+            <h2 id="fr-rights">Vos choix</h2>
+            <ul>
+              <li>Consultez et corrigez votre nom et votre courriel dans Profil.</li>
+              <li>Demandez une copie de vos renseignements, ou la suppression de votre compte, dans Profil ou par courriel. Nous répondons dans les 30 jours.</li>
+              <li>Retirez votre consentement aux textos à tout moment.</li>
+            </ul>
+            <p>Si notre réponse ne vous satisfait pas, vous pouvez communiquer avec le <a href="https://www.priv.gc.ca/fr/" rel="noopener">Commissariat à la protection de la vie privée du Canada</a> ou, en Ontario, avec le <a href="https://www.ipc.on.ca/fr/" rel="noopener">Commissaire à l’information et à la protection de la vie privée de l’Ontario</a>.</p>
+          </section>
+
+          <section aria-labelledby="fr-contact">
+            <h2 id="fr-contact">Nous joindre</h2>
+            <p>Questions, demandes ou préoccupations au sujet de vos renseignements : Groupe 16, Université d’Ottawa.</p>
+            <a class="contact" href="mailto:achow021@uottawa.ca?subject=ClinicFlow%20confidentialit%C3%A9">achow021@uottawa.ca</a>
+          </section>
+
+          <section aria-labelledby="fr-changes">
+            <h2 id="fr-changes">Changements</h2>
+            <p>Quand cet avis change, nous mettons à jour cette page et la date en haut. Avant que ClinicFlow serve à de vrais soins, il fera l’objet d’une évaluation formelle de la protection de la vie privée.</p>
+          </section>
+        </article>
+
+        <footer class="foot">© 2026 ClinicFlow · <span data-foot>Group 16, University of Ottawa</span></footer>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // English or French: ?lang=fr, else the language chosen on the home screen (kept on this device)
+    (function () {
+      var lang = new URLSearchParams(location.search).get('lang');
+      if (lang !== 'fr' && lang !== 'en') { lang = 'en'; try { if (localStorage.getItem('cf.lang') === 'fr') lang = 'fr'; } catch (e) {} }
+      var btn = document.querySelector('[data-lang]');
+      function setLang(l) {
+        lang = l;
+        document.documentElement.lang = l;
+        document.querySelectorAll('[data-copy]').forEach(function (a) { a.hidden = a.dataset.copy !== l; });
+        document.title = l === 'fr' ? 'Avis de confidentialité · ClinicFlow' : 'Privacy notice · ClinicFlow';
+        document.querySelector('[data-foot]').textContent = l === 'fr' ? 'Groupe 16, Université d’Ottawa' : 'Group 16, University of Ottawa';
+        btn.textContent = l === 'fr' ? 'EN' : 'FR';
+        btn.lang = l === 'fr' ? 'en' : 'fr';
+        btn.setAttribute('aria-label', l === 'fr' ? 'English' : 'Français');
+        try { localStorage.setItem('cf.lang', l); } catch (e) {}
+      }
+      btn.addEventListener('click', function () { setLang(lang === 'fr' ? 'en' : 'fr'); document.querySelector('.scroll').scrollTop = 0; });
+      setLang(lang);
+      // opened from an app in a new tab: "back" closes it; otherwise it goes to the home screen
+      if (window.opener || history.length <= 1) {
+        document.querySelector('[data-back]').addEventListener('click', function (e) {
+          if (window.opener) { e.preventDefault(); window.close(); }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

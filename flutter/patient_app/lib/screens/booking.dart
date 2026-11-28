@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../calendar_file.dart';
+import '../role_choice.dart';
 import '../scope.dart';
 import '../session.dart';
 import '../widgets.dart';
@@ -382,6 +383,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           CheckboxListTile(value: _policy, onChanged: (v) => setState(() => _policy = v!), controlAffinity: ListTileControlAffinity.leading, contentPadding: EdgeInsets.zero, title: Text(s.t('policy'), style: context.text.bodySmall?.copyWith(color: context.colors.fg))),
           const SizedBox(height: 8),
           Text(s.t('minData'), style: context.text.bodySmall, textAlign: TextAlign.center),
+          if (canOpenPrivacy) Center(child: TextButton(onPressed: () => openPrivacy(context.lang), child: Text(s.t('privacyLink')))),
         ],
       );
     });

@@ -76,5 +76,6 @@ const Map<String, String> frStaffApp = {
   'Offers go to priority patients first, then in the order they joined. Rules are set on the staff website.': 'Les offres vont d’abord aux patients prioritaires, puis par ordre d’inscription. Les règles se règlent sur le site du personnel.',
   '{n} waiting': '{n} en attente',
   'I’m a patient': 'Je suis un patient',
+  'Privacy notice': 'Avis de confidentialité',
   'Switch to the patient app': 'Passer à l’application patient',
 };

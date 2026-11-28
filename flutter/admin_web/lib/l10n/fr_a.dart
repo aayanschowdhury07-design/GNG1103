@@ -141,6 +141,7 @@ const frA = <String, String>{
   'I already have an account': 'J’ai déjà un compte',
   'New clinic? Create an account': 'Nouvelle clinique? Créez un compte',
   'Forgot password': 'Mot de passe oublié',
+  'Privacy notice': 'Avis de confidentialité',
   'Enter your clinic’s name.': 'Entrez le nom de votre clinique.',
   'Couldn’t create the clinic: {error}': 'Impossible de créer la clinique : {error}',
   'Couldn’t join {clinic}: {error}': 'Impossible de rejoindre {clinic} : {error}',

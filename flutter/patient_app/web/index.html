@@ -1,47 +1,369 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
+  <!-- Replaced by `flutter build --base-href`. The patient app is served at the site root. -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Book a visit at your clinic, get reminders, and check in from your phone. No account needed to book.">
+  <meta name="description" content="Book a visit at your clinic in a minute, get text reminders and check in from your phone. Clinics set up ClinicFlow in under an hour.">
 
-  <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="#FAFAF8">
   <meta name="apple-mobile-web-app-title" content="ClinicFlow">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>ClinicFlow</title>
   <link rel="manifest" href="manifest.json">
+  <title>ClinicFlow · Book clinic visits without the phone tag</title>
+
+  <!--
+    This one file serves two things:
+      /            the ClinicFlow home screen below (plain HTML, opens instantly)
+      everything else (/app, /c/{clinic}, …) starts the patient app (Flutter)
+    The staff app has its own copy at /staff/.
+  -->
+  <script>
+    (function () {
+      var root = document.baseURI.replace(location.origin, '') || '/';
+      var path = location.pathname;
+      window.cfHome = path === root || path === root + 'index.html';
+      document.documentElement.className = window.cfHome ? 'home' : 'app';
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" media="print" onload="this.media='all'">
+
+  <style>
+    /* The app's own palette and fonts (clinicflow_core/lib/src/theme.dart), so home and app match */
+    :root {
+      --bg: #FAFAF8; --surface: #FFFFFF; --surface2: #F3F4F2;
+      --line: #E5E6E2; --line-strong: #888C94; --fg: #1C2128; --muted: #5E6570;
+      --accent: #3C649F; --accent-soft: #EDF2F9; --accent-fg: #FFFFFF;
+      --good: #1F7A53; --hero: #2C4C7C; --hero-fg: #FFFFFF;
+      --serif: 'Source Serif 4', Georgia, serif;
+      --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #121417; --surface: #1A1D22; --surface2: #22262C;
+        --line: #2E333A; --line-strong: #6F757D; --fg: #E8EAED; --muted: #9BA2AD;
+        --accent: #8FB0E3; --accent-soft: #1F2B3D; --accent-fg: #101722;
+        --good: #71C79C; --hero: #24395A; --hero-fg: #EEF2F8;
+      }
+    }
+
+    html.app #home { display: none; }
+    html.home, html.home body { margin: 0; height: 100%; background: var(--bg); }
+
+    /* zero-specificity reset, so every class below wins over it */
+    :where(#home) *, :where(#home) *::before, :where(#home) *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :where(#home) a { color: inherit; }
+    :where(#home) ul, :where(#home) ol { list-style: none; }
+    #home { box-sizing: border-box; height: 100%; font: 400 15px/1.5 var(--sans); color: var(--fg); -webkit-font-smoothing: antialiased; }
+    #home :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+    /* ---- the phone: full screen on a phone; a phone-sized frame on a computer, like the app */
+    .phone { position: relative; height: 100%; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; }
+    .scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; scroll-behavior: smooth; scrollbar-width: none; }
+    .scroll::-webkit-scrollbar { display: none; }
+    @media (min-width: 600px) {
+      html.home body { background: var(--surface2); }
+      #home { display: grid; place-items: center; padding: 16px; }
+      .phone { width: 412px; height: min(880px, 100%); border-radius: 32px; border: 1px solid var(--line); box-shadow: 0 12px 32px rgba(0, 0, 0, .08); }
+    }
+
+    /* top bar */
+    .bar { flex: none; height: 60px; padding: 0 12px 0 20px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); background: var(--bg); }
+    .brand { display: flex; align-items: center; gap: 9px; text-decoration: none; font: 500 20px/1 var(--serif); letter-spacing: -0.01em; margin-right: auto; }
+    .mark { width: 30px; height: 30px; border-radius: 8px; background: var(--hero); color: var(--hero-fg); display: grid; place-items: center; font: 600 12px/1 var(--sans); }
+    .lang { background: none; border: 0; color: var(--muted); font: 500 13px/1 var(--sans); min-height: 44px; padding: 0 10px; cursor: pointer; border-radius: 8px; }
+    .lang:hover { color: var(--fg); }
+
+    .btn { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 20px; border-radius: 10px; font: 600 15px/1 var(--sans); text-decoration: none; cursor: pointer; border: 1px solid transparent; transition: background-color .15s, border-color .15s, transform .15s; }
+    .btn.primary { background: var(--accent); color: var(--accent-fg); }
+    .btn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+    .btn.quiet { background: var(--surface); border-color: var(--line); color: var(--fg); }
+    .btn.quiet:hover { border-color: var(--line-strong); }
+    .btn.small { min-height: 40px; padding: 0 16px; font-size: 14px; border-radius: 9px; }
+    .btn svg { width: 18px; height: 18px; }
+    .icon { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .pad { padding: 0 20px; }
+    .eyebrow { font: 600 11.5px/1.3 var(--sans); text-transform: uppercase; letter-spacing: 0.09em; color: var(--accent); }
+
+    /* hero */
+    .hero { padding-top: 28px; }
+    .hero h1 { font: 500 36px/1.08 var(--serif); letter-spacing: -0.02em; margin-top: 10px; }
+    .hero h1 em { font-style: italic; color: var(--accent); }
+    .lede { font-size: 15.5px; color: var(--muted); margin-top: 12px; }
+    .ctas { display: grid; gap: 10px; margin-top: 22px; }
+
+    /* sections */
+    .sec { padding-top: 40px; }
+    .sec h2.title { font: 500 25px/1.15 var(--serif); letter-spacing: -0.015em; margin-top: 8px; }
+    .steps { margin-top: 16px; counter-reset: s; }
+    .steps li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+    .steps li::before { counter-increment: s; content: counter(s); width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font: 600 13px/1 var(--sans); }
+    .steps h3 { font-size: 15px; font-weight: 600; }
+    .steps p { color: var(--muted); font-size: 14px; margin-top: 2px; }
+
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-top: 14px; }
+    .panel h3 { font: 500 20px/1.2 var(--serif); margin-top: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+    .panel li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+    .panel li:last-of-type { border-bottom: 0; }
+    .panel li svg { width: 20px; height: 20px; color: var(--accent); margin-top: 1px; }
+    .panel li b { display: block; font-weight: 600; font-size: 14.5px; }
+    .panel li span { color: var(--muted); font-size: 13.5px; }
+    .panel .btn { margin-top: 10px; }
+
+    .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+    .facts div { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+    .facts dd { font: 500 26px/1 var(--serif); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; order: -1; }
+    .facts dt { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+
+    .more { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; color: var(--accent); font-weight: 500; font-size: 14px; text-underline-offset: 3px; }
+    .more::after { content: '→'; margin-left: 6px; }
+
+    .closing { margin: 36px 20px 0; background: var(--hero); color: var(--hero-fg); border-radius: 18px; padding: 22px; }
+    .closing h2 { font: 500 22px/1.2 var(--serif); }
+    .closing p { opacity: .85; margin-top: 6px; font-size: 14px; }
+    .closing .btn { margin-top: 16px; background: var(--hero-fg); color: var(--hero); }
+    .closing .btn:hover { background: color-mix(in srgb, var(--hero-fg) 88%, var(--hero)); }
+
+    .foot { padding: 24px 20px 28px; color: var(--muted); font-size: 12.5px; text-align: center; }
+    .foot nav { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 10px; }
+    .foot a { text-decoration: none; padding: 6px 0; }
+    .foot a:hover { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+
+    /* Sign in: a bottom sheet inside the phone */
+    .shade { position: absolute; inset: 0; z-index: 20; background: rgba(18, 20, 23, .45); opacity: 0; pointer-events: none; transition: opacity .2s; }
+    .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--bg); border-radius: 22px 22px 0 0; padding: 10px 20px calc(24px + env(safe-area-inset-bottom)); transform: translateY(105%); transition: transform .28s cubic-bezier(.2, .9, .3, 1); visibility: hidden; }
+    .open .shade { opacity: 1; pointer-events: auto; }
+    .open .sheet { transform: none; visibility: visible; }
+    .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 14px; }
+    .sheet header { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+    .sheet h2 { font: 500 23px/1.2 var(--serif); }
+    .sheet header p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+    .sheet .x { flex: none; width: 40px; height: 40px; border-radius: 10px; border: 0; background: var(--surface2); color: var(--fg); font-size: 22px; line-height: 1; cursor: pointer; }
+    .choice { display: grid; grid-template-columns: 44px 1fr 18px; gap: 14px; align-items: center; margin-top: 12px; padding: 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: var(--fg); transition: border-color .15s, transform .15s; }
+    .sheet header + .choice { margin-top: 18px; }
+    .choice:hover { border-color: var(--accent); }
+    .choice .ic { width: 44px; height: 44px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+    .choice .ic svg { width: 22px; height: 22px; }
+    .choice b { display: block; font-size: 15px; font-weight: 600; }
+    .choice span { color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .choice > svg { width: 18px; height: 18px; color: var(--muted); }
+    .sheet .note { margin-top: 16px; font-size: 13px; color: var(--muted); text-align: center; }
+    .sheet .note a { color: var(--accent); font-weight: 500; }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .rise { animation: rise .6s cubic-bezier(.16, 1, .3, 1) both; animation-delay: var(--d, 0s); }
+      @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+      .btn:active, .choice:active { transform: scale(.98); }
+    }
+    @media (prefers-reduced-motion: reduce) { .sheet, .shade { transition: none; } }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="home">
+    <div class="phone" id="phone">
+      <header class="bar">
+        <a class="brand" href="./" aria-label="ClinicFlow home"><span class="mark" aria-hidden="true">CF</span>ClinicFlow</a>
+        <button class="lang" type="button" data-lang lang="fr">FR</button>
+        <button class="btn primary small" type="button" data-signin data-t="signIn">Sign in</button>
+      </header>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
+      <main class="scroll" id="main">
+        <section class="hero pad" aria-labelledby="heroTitle">
+          <p class="eyebrow rise" data-t="heroEyebrow">Booking and check-in for clinics in Canada</p>
+          <h1 id="heroTitle" class="rise" style="--d:.05s" data-t="heroTitle" data-html>Clinic visits, <em>without the phone&nbsp;tag.</em></h1>
+          <p class="lede rise" style="--d:.1s" data-t="heroLede">Find your clinic, pick a time and get a text reminder. No account or password to book.</p>
+          <div class="ctas rise" style="--d:.15s">
+            <a class="btn primary" href="app?tab=book"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/></svg><span data-t="ctaBook">Book a visit</span></a>
+            <a class="btn quiet" href="app?tab=clinics"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6 7-11.5a7 7 0 1 0-14 0C5 15 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span data-t="ctaFind">Find a clinic</span></a>
+          </div>
+        </section>
+
+        <section class="sec pad" aria-labelledby="howTitle">
+          <p class="eyebrow" data-t="howEyebrow">How it works</p>
+          <h2 class="title" id="howTitle" data-t="howTitle">Booked in a minute, reminded before you forget</h2>
+          <ol class="steps">
+            <li><div><h3 data-t="s1t">Find your clinic</h3><p data-t="s1">Search the directory or open your clinic’s booking link. Only clinics our team has checked take bookings.</p></div></li>
+            <li><div><h3 data-t="s2t">Pick a time</h3><p data-t="s2">Choose a service, a clinician or the first one available, and a time. It’s held for you while you finish.</p></div></li>
+            <li><div><h3 data-t="s3t">Get reminded, then check in</h3><p data-t="s3">A text 2 days and 1 day before. On the day, tap “I’m here” from the parking lot.</p></div></li>
+          </ol>
+        </section>
+
+        <section class="sec pad" aria-labelledby="whoTitle">
+          <p class="eyebrow" data-t="whoEyebrow">Patients and clinics</p>
+          <h2 class="title" id="whoTitle" data-t="whoTitle">One booking, seen by both sides</h2>
+          <div class="panel">
+            <p class="eyebrow" data-t="patEyebrow">For patients</p>
+            <h3 data-t="patTitle">Less waiting on hold</h3>
+            <ul>
+              <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg><div><b data-t="p1t">No account or password</b><span data-t="p1">Sign in with a code sent to your phone.</span></div></li>
+              <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><div><b data-t="p2t">Text reminders</b><span data-t="p2">Two days and one day before, only if you agree to texts.</span></div></li>
+              <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><div><b data-t="p3t">An earlier time, if one opens</b><span data-t="p3">Join the waitlist and get a text when a time is cancelled.</span></div></li>
+              <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/></svg><div><b data-t="p4t">English or French</b><span data-t="p4">Every screen, in the language you choose.</span></div></li>
+            </ul>
+          </div>
+          <div class="panel">
+            <p class="eyebrow" data-t="cliEyebrow">For clinics</p>
+            <h3 data-t="cliTitle">Fewer empty appointment times</h3>
+            <ul>
+              <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/></svg><div><b data-t="c1t">Set up in under an hour</b><span data-t="c1">Services, hours and team, step by step. No IT person needed.</span></div></li>
+              <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><div><b data-t="c2t">Today, in order</b><span data-t="c2">Who’s here, who’s waiting and what needs you, on one screen.</span></div></li>
+              <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"/></svg><div><b data-t="c3t">Cancellations refilled</b><span data-t="c3">A freed time is offered to the next patient on the waitlist automatically.</span></div></li>
+              <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg><div><b data-t="c4t">A role for each person</b><span data-t="c4">Admin, front desk, clinician and support each see only what their job needs.</span></div></li>
+            </ul>
+            <a class="btn quiet" href="https://clinicflow-staff.web.app" data-t="setUpClinic">Set up your clinic</a>
+          </div>
+        </section>
+
+        <section class="sec pad" aria-labelledby="privTitle">
+          <p class="eyebrow" data-t="privEyebrow">Measured, not promised</p>
+          <h2 class="title" id="privTitle" data-t="privTitle">Built for patient privacy in Canada</h2>
+          <dl class="facts">
+            <div><dt data-t="f1">Where patient records are stored: Toronto</dt><dd data-t="f1v">Canada</dd></div>
+            <div><dt data-t="f2">access checks passed: each role sees only its own data</dt><dd>108/108</dd></div>
+            <div><dt data-t="f3">double bookings when 100 people tried the same time at once</dt><dd>0</dd></div>
+            <div><dt data-t="f4">medical records stored. ClinicFlow works beside them</dt><dd data-t="f4v">None</dd></div>
+          </dl>
+          <a class="more" href="privacy/" data-t="readPrivacy">How we handle your information</a>
+        </section>
+
+        <section class="closing" aria-labelledby="endTitle">
+          <h2 id="endTitle" data-t="endTitle">Already booked, or work at a clinic?</h2>
+          <p data-t="endText">Sign in to see your visits, or open the staff app to run the day.</p>
+          <button class="btn" type="button" data-signin data-t="signIn">Sign in</button>
+        </section>
+
+        <footer class="foot">
+          <nav aria-label="More">
+            <a href="app?tab=clinics" data-t="ctaFind">Find a clinic</a>
+            <a href="staff/" data-t="staffApp">Staff app</a>
+            <a href="https://clinicflow-staff.web.app" data-t="staffSite">Staff website</a>
+            <a href="privacy/" data-t="privacy">Privacy</a>
+          </nav>
+          <span>© 2026 ClinicFlow · <span data-t="footBy">Group 16, University of Ottawa</span></span>
+        </footer>
+      </main>
+
+      <div class="shade" data-close></div>
+      <div class="sheet" id="signin" role="dialog" aria-modal="true" aria-labelledby="signinTitle" aria-hidden="true">
+        <div class="grab" aria-hidden="true"></div>
+        <header>
+          <div><h2 id="signinTitle" data-t="sheetTitle">Sign in</h2><p data-t="sheetSub">Who are you signing in as?</p></div>
+          <button class="x" type="button" data-close aria-label="Close" data-t-label="close">×</button>
+        </header>
+        <a class="choice" href="app?signin">
+          <span class="ic"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/></svg></span>
+          <span><b data-t="asPatient">I’m a patient</b><span data-t="asPatientSub">Your visits and reminders. Sign in with a code sent to your phone.</span></span>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+        <a class="choice" href="staff/">
+          <span class="ic"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M12 11v6M9 14h6"/></svg></span>
+          <span><b data-t="asStaff">I work at a clinic</b><span data-t="asStaffSub">The day’s queue, schedule and waitlist. Sign in with your work email.</span></span>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+        <p class="note"><span data-t="noAccount">Just booking? You don’t need to sign in.</span> <a href="app?tab=book" data-t="ctaBook">Book a visit</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (window.cfHome) {
+      // ---- English / French: the same words the app uses, kept on this device
+      var FR = {
+        signIn: 'Se connecter', heroEyebrow: 'Réservation et accueil pour les cliniques au Canada',
+        heroTitle: 'Des rendez-vous à la clinique, <em>sans attente au téléphone.</em>',
+        heroLede: 'Trouvez votre clinique, choisissez une heure et recevez un rappel par texto. Aucun compte ni mot de passe pour réserver.',
+        ctaBook: 'Prendre rendez-vous', ctaFind: 'Trouver une clinique',
+        howEyebrow: 'Comment ça marche', howTitle: 'Réservé en une minute, rappelé avant d’oublier',
+        s1t: 'Trouvez votre clinique', s1: 'Cherchez dans le répertoire ou ouvrez le lien de réservation de votre clinique. Seules les cliniques vérifiées par notre équipe acceptent des réservations.',
+        s2t: 'Choisissez une heure', s2: 'Choisissez un service, un clinicien ou le premier disponible, puis une heure. Elle vous est réservée pendant que vous terminez.',
+        s3t: 'Recevez un rappel, puis enregistrez-vous', s3: 'Un texto 2 jours et 1 jour avant. Le jour même, touchez « Je suis arrivé » depuis le stationnement.',
+        whoEyebrow: 'Patients et cliniques', whoTitle: 'Un rendez-vous, vu des deux côtés',
+        patEyebrow: 'Pour les patients', patTitle: 'Moins d’attente au téléphone',
+        p1t: 'Aucun compte ni mot de passe', p1: 'Connectez-vous avec un code envoyé à votre téléphone.',
+        p2t: 'Rappels par texto', p2: 'Deux jours et un jour avant, seulement si vous acceptez les textos.',
+        p3t: 'Une heure plus tôt, si elle se libère', p3: 'Inscrivez-vous à la liste d’attente et recevez un texto quand une heure est annulée.',
+        p4t: 'En français ou en anglais', p4: 'Chaque écran, dans la langue de votre choix.',
+        cliEyebrow: 'Pour les cliniques', cliTitle: 'Moins de plages horaires vides',
+        c1t: 'Configurée en moins d’une heure', c1: 'Services, heures et équipe, étape par étape. Aucun informaticien requis.',
+        c2t: 'La journée, dans l’ordre', c2: 'Qui est arrivé, qui attend et ce qui demande votre attention, sur un seul écran.',
+        c3t: 'Annulations remplies', c3: 'Une heure libérée est offerte automatiquement au prochain patient de la liste d’attente.',
+        c4t: 'Un rôle pour chaque personne', c4: 'Administration, accueil, clinicien et soutien ne voient que ce dont ils ont besoin.',
+        setUpClinic: 'Configurer votre clinique', privEyebrow: 'Mesuré, pas promis', privTitle: 'Conçu pour la confidentialité des patients au Canada',
+        f1: 'Où les dossiers des patients sont stockés : Toronto', f1v: 'Canada',
+        f2: 'vérifications d’accès réussies : chaque rôle ne voit que ses données',
+        f3: 'double réservation quand 100 personnes ont essayé la même heure en même temps',
+        f4: 'dossier médical stocké. ClinicFlow fonctionne à côté', f4v: 'Aucun',
+        endTitle: 'Déjà inscrit, ou vous travaillez dans une clinique?', endText: 'Connectez-vous pour voir vos rendez-vous, ou ouvrez l’app du personnel pour gérer la journée.',
+        footBy: 'Groupe 16, Université d’Ottawa', staffApp: 'App du personnel', staffSite: 'Site du personnel', privacy: 'Confidentialité', readPrivacy: 'Comment nous traitons vos renseignements',
+        sheetTitle: 'Se connecter', sheetSub: 'À quel titre vous connectez-vous?', close: 'Fermer',
+        asPatient: 'Je suis un patient', asPatientSub: 'Vos rendez-vous et rappels. Connexion avec un code envoyé à votre téléphone.',
+        asStaff: 'Je travaille dans une clinique', asStaffSub: 'La file, l’horaire et la liste d’attente. Connexion avec votre courriel professionnel.',
+        noAccount: 'Vous voulez seulement réserver? Pas besoin de vous connecter.'
+      };
+      var EN = {};
+      document.querySelectorAll('[data-t]').forEach(function (el) { var k = el.dataset.t; if (!(k in EN)) EN[k] = el.hasAttribute('data-html') ? el.innerHTML : el.textContent; });
+      var closeBtn = document.querySelector('[data-t-label]'), closeEn = closeBtn.getAttribute('aria-label');
+      var lang = 'en';
+      try { lang = localStorage.getItem('cf.lang') === 'fr' ? 'fr' : 'en'; } catch (e) {}
+      function setLang(l) {
+        lang = l;
+        var words = l === 'fr' ? FR : EN;
+        document.documentElement.lang = l;
+        document.querySelectorAll('[data-t]').forEach(function (el) {
+          var v = words[el.dataset.t]; if (v == null) return;
+          if (el.hasAttribute('data-html')) el.innerHTML = v; else el.textContent = v;
+        });
+        closeBtn.setAttribute('aria-label', l === 'fr' ? FR.close : closeEn);
+        var btn = document.querySelector('[data-lang]');
+        btn.textContent = l === 'fr' ? 'EN' : 'FR';
+        btn.lang = l === 'fr' ? 'en' : 'fr';
+        btn.setAttribute('aria-label', l === 'fr' ? 'English' : 'Français');
+        // the app opens in the same language
+        document.querySelectorAll('a[href^="app"]').forEach(function (a) {
+          var u = new URL(a.getAttribute('href'), document.baseURI);
+          if (l === 'fr') u.searchParams.set('lang', 'fr'); else u.searchParams.delete('lang');
+          a.setAttribute('href', 'app' + u.search);
+        });
+        try { localStorage.setItem('cf.lang', l); } catch (e) {}
+      }
+      document.querySelector('[data-lang]').addEventListener('click', function () { setLang(lang === 'fr' ? 'en' : 'fr'); });
+      setLang(lang);
+
+      // ---- Sign in: a bottom sheet asking patient or clinic staff
+      var phone = document.getElementById('phone'), sheet = document.getElementById('signin'), opener = null;
+      function openSheet(e) {
+        opener = e.currentTarget;
+        phone.classList.add('open');
+        sheet.setAttribute('aria-hidden', 'false');
+        document.getElementById('main').setAttribute('inert', '');
+        setTimeout(function () { sheet.querySelector('.choice').focus(); }, 50);
+      }
+      function closeSheet() {
+        phone.classList.remove('open');
+        sheet.setAttribute('aria-hidden', 'true');
+        document.getElementById('main').removeAttribute('inert');
+        if (opener) opener.focus();
+      }
+      document.querySelectorAll('[data-signin]').forEach(function (b) { b.addEventListener('click', openSheet); });
+      document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', closeSheet); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && phone.classList.contains('open')) closeSheet(); });
+    } else {
+      // ---- every other address is the patient app
+      var s = document.createElement('script');
+      s.src = 'flutter_bootstrap.js';
+      s.async = true;
+      document.body.appendChild(s);
+    }
+  </script>
 </body>
 </html>

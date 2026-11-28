@@ -114,16 +114,21 @@ class ProfileScreen extends StatelessWidget {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => _askDelete(context),
               ),
+              if (canOpenPrivacy)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(s.t('privacyNotice')),
+                  subtitle: Text(s.t('privacySub')),
+                  trailing: const Icon(Icons.open_in_new, size: 20),
+                  onTap: () => openPrivacy(context.lang),
+                ),
             ]),
           ),
           const SizedBox(height: 8),
           OutlinedButton(onPressed: b.signOut, child: Text(s.t('signOut'))),
           const SizedBox(height: 4),
           TextButton(
-            onPressed: () {
-              saveRole('staff');
-              openStaffApp();
-            },
+            onPressed: openStaffApp,
             child: Text(s.t('staffAppLink')),
           ),
         ],

@@ -2,6 +2,7 @@ import 'package:clinicflow_core/clinicflow_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../role_choice.dart';
 import '../scope.dart';
 import '../widgets.dart';
 
@@ -108,6 +109,7 @@ class _SignInScreenState extends State<SignInScreen> {
         if (context.backend is DemoBackend)
           OutlinedButton.icon(onPressed: () => context.backend.signInWithDevice(), icon: const Icon(Icons.face_outlined), label: Text(s.t('faceId'))),
         TextButton(onPressed: widget.onBookWithout, child: Text(s.t('bookWithout'))),
+        if (canOpenPrivacy) TextButton(onPressed: () => openPrivacy(context.lang), child: Text(s.t('privacyLink'))),
       ],
     );
   }
